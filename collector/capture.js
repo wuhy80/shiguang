@@ -47,7 +47,7 @@ async function load(){
   known=[...new Set(draft.tags||[])];
   if(draft.selection){document.getElementById('excerpt').hidden=false;document.getElementById('selection').textContent=draft.selection;}
   collection=draft.collection||null;
-  if(collection){document.getElementById('collection-toggle').hidden=false;document.getElementById('collection-name').textContent='检测到：'+(collection.title||collection.url);}
+  if(collection){document.getElementById('collection-toggle').hidden=false;document.getElementById('collection-name').textContent='检测到：'+(collection.title||collection.url)+(collection.episodes?'（含 '+collection.episodes.length+' 集）':'（合集链接与标题，每集可在合集页再存一次补全）');}
   save.disabled=false;document.getElementById('tags').focus();
  }catch(error){status.textContent=error.message;}
 }
