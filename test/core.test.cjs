@@ -22,3 +22,14 @@ test('known link domains correct previously wrong platform while retaining colle
   assert.equal(core.normalize({url:'https://b23.tv/abc',platform:'xiaohongshu'}).platform,'bilibili');
  }
 });
+
+test('Douyin collection modal links canonicalize to the public video page and dedupe',()=>{
+ const modal='https://www.douyin.com/user/self?from_tab_name=main&modal_id=7617464281105321235&showSubTab=compilation&showTab=favorite_collection';
+ const item=SG.normalize({url:modal});
+ assert.equal(item.url,'https://www.douyin.com/video/7617464281105321235');
+ assert.equal(item.platform,'douyin');assert.equal(item.type,'video');
+ assert.equal(SG.normalize({url:'https://www.iesdouyin.com/share/video/7617464281105321235'}).url,'https://www.douyin.com/video/7617464281105321235');
+ assert.equal(SG.normalize({url:'https://m.douyin.com/video/7617464281105321235'}).url,'https://www.douyin.com/video/7617464281105321235');
+ const r=SG.merge([],[{url:modal,title:'x'},{url:'https://www.douyin.com/video/7617464281105321235',title:'y'}]);
+ assert.equal(r.added,1);assert.equal(r.duplicates,1);
+});

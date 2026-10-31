@@ -162,3 +162,17 @@ for(const scenario of ['delete','edit','account'])test('background metadata resp
  if(scenario==='edit'){assert.equal(JSON.parse(raw)[0].title,'My edited title');assert.equal(JSON.parse(raw)[0].notes,'Edited reason');}
  else assert.equal(raw,'[]');
 });
+
+test('Douyin share SSR data is parsed and collection modal links resolve through the cloud preview',async()=>{
+ const {parseDouyin,preview}=await import('../supabase/functions/link-preview/preview.mjs');
+ assert.equal(parseDouyin('<html>no data</html>'),null);
+ const router=JSON.stringify({loaderData:{'video_(id)/page':{videoInfoRes:{item_list:[{aweme_id:'7617464281105321235',desc:'  梯度下降——模型如何自己学会找最优参数  #梯度下降  ',author:{nickname:'谦行AIing'},video:{cover:{url_list:['http://p3.douyinpic.com/a.webp','https://p5.douyinpic.com/b.webp?x=1']}}}]}}}});
+ const html=`<html><script>window._ROUTER_DATA = ${router} </script></html>`;
+ assert.deepEqual({t:parseDouyin(html).title,c:parseDouyin(html).thumbnail},{t:'梯度下降——模型如何自己学会找最优参数 #梯度下降',c:'https://p5.douyinpic.com/b.webp?x=1'});
+ const requests=[];
+ const body=bytes=>({getReader(){let done=false;return{read(){if(done)return Promise.resolve({done:true,value:null});done=true;return Promise.resolve({done:false,value:new TextEncoder().encode(bytes)});},cancel(){}}}});
+ const stub=(url,options={})=>{requests.push(String(url));if(String(url).includes('ttwid'))return Promise.resolve({ok:true,status:200,headers:new Map([['set-cookie','ttwid=abc123; Path=/']]),body:body('')});return Promise.resolve({ok:true,status:200,headers:new Map(),body:body(html)});};
+ const result=await preview('https://www.douyin.com/video/7617464281105321235',stub);
+ assert.equal(result.title,'梯度下降——模型如何自己学会找最优参数 #梯度下降');assert.equal(result.thumbnail,'https://p5.douyinpic.com/b.webp?x=1');
+ assert.ok(requests.some(u=>u.includes('iesdouyin.com/share/video/7617464281105321235')));
+});
