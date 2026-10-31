@@ -2,7 +2,7 @@
  'use strict';
  const domains=['mp.weixin.qq.com','bilibili.com','b23.tv','youtube.com','youtu.be','linux.do','zhihu.com','zhihu.link','xiaohongshu.com','xhslink.com','xhslink.cn','douyin.com','iesdouyin.com','github.com'];
  const needsTitle=SG.needsTitle;
- function apply(item,meta){let changed=false;if(!item.thumbnail&&SG.safeImage(meta.thumbnail)){item.thumbnail=SG.safeImage(meta.thumbnail);changed=true;}if(needsTitle(item)&&meta.title&&!needsTitle({...item,title:meta.title})){item.title=String(meta.title).slice(0,500);changed=true;}return changed;}
+ function apply(item,meta){let changed=false;if(!item.thumbnail&&SG.safeImage(meta.thumbnail)){item.thumbnail=SG.safeImage(meta.thumbnail);changed=true;}if(needsTitle(item)&&meta.title&&!needsTitle({...item,title:meta.title})){item.title=String(meta.title).slice(0,500);changed=true;}if(!item.episodes&&Array.isArray(meta.episodes)&&meta.episodes.length){const episodes=meta.episodes.map(e=>SG.normalize(e)).filter(Boolean).map(({url,title,thumbnail})=>({url,title,thumbnail}));if(episodes.length){item.episodes=episodes;changed=true;}}return changed;}
  function supported(url){try{const u=new URL(url);return u.protocol==='https:'&&domains.some(d=>u.hostname===d||u.hostname.endsWith('.'+d));}catch{return false;}}
  let sequence=0;const requests=new Map();
  function phonePreview(url){

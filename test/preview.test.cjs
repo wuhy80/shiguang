@@ -176,3 +176,20 @@ test('Douyin share SSR data is parsed and collection modal links resolve through
  assert.equal(result.title,'梯度下降——模型如何自己学会找最优参数 #梯度下降');assert.equal(result.thumbnail,'https://p5.douyinpic.com/b.webp?x=1');
  assert.ok(requests.some(u=>u.includes('iesdouyin.com/share/video/7617464281105321235')));
 });
+
+test('bilibili favlists and youtube playlists resolve with episode lists',async()=>{
+ const {preview}=await import('../supabase/functions/link-preview/preview.mjs');
+ const body=bytes=>({getReader(){let done=false;return{read(){if(done)return Promise.resolve({done:true,value:null});done=true;return Promise.resolve({done:false,value:new TextEncoder().encode(bytes)});},cancel(){}}}});
+ const stub=url=>{
+  url=String(url);
+  if(url.includes('/x/v3/fav/resource/list'))return Promise.resolve({ok:true,status:200,headers:new Map(),body:body(JSON.stringify({code:0,data:{info:{title:'前端学习路线'},medias:[{bvid:'BV1xx411c7mD',title:'第一集 HTML',cover:'https://i0.hdslb.com/a.jpg'},{bvid:'BV1yf411q7ok',title:'第二集 CSS',cover:'https://i0.hdslb.com/b.jpg'}]}}))});
+  if(url.includes('oembed'))return Promise.resolve({ok:true,status:200,headers:new Map(),body:body(JSON.stringify({title:'My Playlist',author_name:'Someone',thumbnail_url:'https://i.ytimg.com/pl.jpg'}))});
+  if(url.includes('feeds/videos.xml'))return Promise.resolve({ok:true,status:200,headers:new Map(),body:body('<feed><entry><yt:videoId>abc123_-xYz</yt:videoId><title>Episode 1</title><media:thumbnail url="https://i.ytimg.com/v1.jpg"/></entry><entry><yt:videoId>def456_-xYz</yt:videoId><title>Episode 2</title></entry></feed>')});
+  return Promise.resolve({ok:false,status:404,headers:new Map(),body:body('')});
+ };
+ const fav=await preview('https://space.bilibili.com/946974/favlist?fid=777',stub);
+ assert.equal(fav.title,'前端学习路线');assert.equal(fav.episodes.length,2);
+ assert.equal(fav.episodes[0].url,'https://www.bilibili.com/video/BV1xx411c7mD');assert.equal(fav.episodes[0].thumbnail,'https://i0.hdslb.com/a.jpg');
+ const yt=await preview('https://www.youtube.com/playlist?list=PLtest12345678',stub);
+ assert.equal(yt.title,'My Playlist');assert.equal(yt.episodes.length,2);assert.equal(yt.episodes[0].url,'https://www.youtube.com/watch?v=abc123_-xYz');
+});

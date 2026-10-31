@@ -43,3 +43,13 @@
 /* Hidden notifications must never leave a visible rectangle on mobile. */
 .toast{opacity:0;visibility:hidden;bottom:20px;transition:opacity .15s,transform .15s,visibility .15s}.toast.show{opacity:1;visibility:visible}.toast:empty{display:none}
 @media(max-width:700px){.workspace main{padding-bottom:24px}#cloud-account{min-height:44px;min-width:112px}}
+
+/* 合集条目：详情弹窗中的每集列表 */
+.episode-block{margin:14px 0}
+.episode-head{font-size:12px;letter-spacing:.08em;color:#8a8676;margin-bottom:8px}
+.episode-list{display:flex;flex-direction:column;gap:6px;max-height:320px;overflow:auto;padding-right:4px}
+.episode-row{display:flex;align-items:center;gap:10px;padding:7px 9px;border:1px solid #e7e4da;border-radius:9px;text-decoration:none;color:inherit;transition:border-color .15s,background .15s}
+.episode-row:hover{border-color:#c9c4b4;background:#fbfaf6}
+.episode-row img{width:64px;height:40px;object-fit:cover;border-radius:5px;flex:none;background:#efece3}
+.episode-index{width:24px;text-align:center;flex:none;font-size:12px;color:#8a8676}
+.episode-title{font-size:13px;line-height:1.45}

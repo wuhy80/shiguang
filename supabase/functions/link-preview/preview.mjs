@@ -34,6 +34,63 @@ async function douyinMeta(id,fetcher){
  return null;
 }
 async function limitedText(response){const reader=response.body?.getReader();if(!reader)return '';const chunks=[];let total=0;try{while(true){const {value,done}=await reader.read();if(done)break;total+=value.length;if(total>1500000)break;chunks.push(value);}}finally{await reader.cancel();}const bytes=new Uint8Array(chunks.reduce((n,c)=>n+c.length,0));let offset=0;for(const c of chunks){bytes.set(c,offset);offset+=c.length;}return new TextDecoder().decode(bytes);}
+async function apiJSON(target,fetcher,headers={}){
+ if(!allowed(target))throw Error('unsupported_redirect');
+ const response=await fetcher(target,{redirect:'manual',signal:AbortSignal.timeout(7000),headers:{'User-Agent':'Mozilla/5.0','Accept':'application/json,text/xml',...headers}});
+ if([301,302,303,307,308].includes(response.status)){const next=response.headers.get('location');if(next&&allowed(new URL(next,target).href))return apiJSON(new URL(next,target).href,fetcher,headers);throw Error('unsupported_redirect');}
+ if(!response.ok)throw Error('upstream_unavailable');
+ const text=await limitedText(response);try{return JSON.parse(text);}catch{return null;}
+}
+function episodeOut(episodes){return episodes.filter(e=>e&&e.url).slice(0,50);}
+async function bilibiliCollection(u,fetcher){
+ const referer={'Referer':'https://space.bilibili.com/'};
+ const mid=u.pathname.match(/^\/(\d+)(?:\/|$)/)?.[1],fid=u.pathname.includes('/favlist')&&u.searchParams.get('fid');
+ const season=u.pathname.includes('/channel/collectiondetail')&&u.searchParams.get('sid');
+ const series=u.pathname.includes('/channel/seriesdetail')&&u.searchParams.get('sid');
+ let title='',thumbnail='',episodes=[];
+ if(fid){
+  const data=await apiJSON('https://api.bilibili.com/x/v3/fav/resource/list?media_id='+encodeURIComponent(fid)+'&pn=1&ps=50',fetcher,{'Referer':'https://www.bilibili.com/'});
+  const info=data?.data?.info||{};
+  title=String(info.title||'').trim();
+  episodes=episodeOut((data?.data?.medias||[]).filter(m=>m&&m.bvid).map(m=>({url:'https://www.bilibili.com/video/'+m.bvid,title:String(m.title||''),thumbnail:imageUrl(m.cover||m.pic||'','https://www.bilibili.com/')})));
+ }else if(season&&mid){
+  const data=await apiJSON('https://api.bilibili.com/x/polymer/web-space/seasons_archives_list?mid='+encodeURIComponent(mid)+'&season_id='+encodeURIComponent(season)+'&page_num=1&page_size=50',fetcher,referer);
+  const meta=data?.data?.meta||{};
+  title=String(meta.name||'').trim();
+  thumbnail=imageUrl(meta.image||'','https://space.bilibili.com/');
+  episodes=episodeOut((data?.data?.archives||[]).filter(a=>a&&a.bvid).map(a=>({url:'https://www.bilibili.com/video/'+a.bvid,title:String(a.title||''),thumbnail:imageUrl(a.pic||'','https://space.bilibili.com/')})));
+ }else if(series&&mid){
+  const data=await apiJSON('https://api.bilibili.com/x/series/archives?mid='+encodeURIComponent(mid)+'&series_id='+encodeURIComponent(series)+'&pn=1&ps=50',fetcher,referer);
+  const meta=data?.data?.meta||{};
+  title=String(meta.name||'').trim();
+  episodes=episodeOut((data?.data?.archives||[]).filter(a=>a&&a.bvid).map(a=>({url:'https://www.bilibili.com/video/'+a.bvid,title:String(a.title||''),thumbnail:imageUrl(a.pic||'','https://space.bilibili.com/')})));
+ }else return null;
+ if(!title&&!episodes.length)return null;
+ return {title,thumbnail:thumbnail||episodes[0]?.thumbnail||'',episodes};
+}
+async function youtubePlaylist(lid,fetcher){
+ let title='',thumbnail='',episodes=[];
+ try{
+  const data=await apiJSON('https://www.youtube.com/oembed?format=json&url='+encodeURIComponent('https://www.youtube.com/playlist?list='+lid),fetcher);
+  title=String(data?.title||'').trim();thumbnail=String(data?.thumbnail_url||'');
+ }catch{}
+ try{
+  if(!allowed('https://www.youtube.com/feeds/videos.xml?playlist_id='+encodeURIComponent(lid)))throw Error('unsupported_redirect');
+  const response=await fetcher('https://www.youtube.com/feeds/videos.xml?playlist_id='+encodeURIComponent(lid),{redirect:'manual',signal:AbortSignal.timeout(7000),headers:{'User-Agent':'Mozilla/5.0','Accept':'application/xml,text/xml'}});
+  if(response.ok){
+   const xml=await limitedText(response);
+   for(const entry of xml.match(/<entry>[\s\S]*?<\/entry>/g)||[]){
+    if(episodes.length>=50)break;
+    const vid=entry.match(/<yt:videoId>([\w-]+)<\/yt:videoId>/)?.[1]||entry.match(/<link[^>]*href="[^"]*?[?&]v=([\w-]+)"/)?.[1];
+    const entryTitle=decode(entry.match(/<title>([^<]*)<\/title>/)?.[1]||'').trim();
+    const img=entry.match(/<media:thumbnail[^>]*url="([^"]+)"/)?.[1]||'';
+    if(vid)episodes.push({url:'https://www.youtube.com/watch?v='+vid,title:entryTitle,thumbnail:img});
+   }
+  }
+ }catch{}
+ if(!title&&!episodes.length)return null;
+ return {title:title||(episodes[0]?episodes[0].title:''),thumbnail:imageUrl(thumbnail||episodes[0]?.thumbnail||'','https://www.youtube.com/'),episodes};
+}
 export async function preview(value,fetcher=fetch){
  if(!allowed(value))throw Error('unsupported_url');
  let url=new URL(value).href;
@@ -43,9 +100,16 @@ export async function preview(value,fetcher=fetch){
   if(bv){try{const response=await request('https://api.bilibili.com/x/web-interface/view?bvid='+encodeURIComponent(bv));const data=JSON.parse(await limitedText(response));if(data.code===0&&data.data?.pic)return {url,thumbnail:imageUrl(data.data.pic,url),title:String(data.data.title||'').slice(0,500)};console.warn('preview_bilibili',response.status,data.code);}catch(error){console.warn('preview_bilibili',error.message);}}
   const dy=u.hostname.endsWith('douyin.com')||u.hostname.endsWith('iesdouyin.com'),did=dy&&u.pathname.match(/\/(?:share\/)?video\/(\d+)(?:\/|$)/)?.[1];
   if(did){try{const meta=await douyinMeta(did,fetcher);if(meta&&(meta.title||meta.thumbnail))return {url,thumbnail:imageUrl(meta.thumbnail,url),title:meta.title};console.warn('preview_douyin','no metadata for',did);}catch(error){console.warn('preview_douyin',error.message);}}
+  if(u.hostname.endsWith('bilibili.com')&&(u.pathname.includes('/favlist')||u.pathname.includes('/channel/collectiondetail')||u.pathname.includes('/channel/seriesdetail'))){
+   try{const meta=await bilibiliCollection(u,fetcher);if(meta)return {...meta,url};console.warn('preview_bilibili_collection','no metadata');}catch(error){console.warn('preview_bilibili_collection',error.message);}
+  }
+  if(u.hostname.endsWith('youtube.com')&&u.pathname==='/playlist'){
+   const lid=u.searchParams.get('list');
+   if(lid&&/^[\w-]{12,}$/.test(lid)){try{const meta=await youtubePlaylist(lid,fetcher);if(meta)return {...meta,url};console.warn('preview_youtube_playlist','no metadata');}catch(error){console.warn('preview_youtube_playlist',error.message);}}
+  }
   const response=await request(url);
   if([301,302,303,307,308].includes(response.status)){const next=response.headers.get('location');if(!next)break;url=new URL(next,url).href;if(!allowed(url))throw Error('unsupported_redirect');continue;}
-  if(!response.ok)throw Error('upstream_unavailable');return parseMeta(await limitedText(response),url);
+  if(!response.ok)throw Error('upstream_unavailable');const meta=parseMeta(await limitedText(response),url);return /验证码|安全验证|captcha|verify/i.test(meta.title)?{url,thumbnail:'',title:''}:meta;
  }
  return {url,thumbnail:'',title:''};
 }

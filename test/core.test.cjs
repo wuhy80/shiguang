@@ -39,3 +39,17 @@ test('Douyin search pages with a video modal_id also canonicalize to the video',
  assert.equal(SG.canonical('https://www.douyin.com/collection/1234567890123456789?previous_page=app_code_link'),'https://www.douyin.com/collection/1234567890123456789');
  assert.equal(SG.canonical('https://www.douyin.com/jingxuan/search/B%E6%A0%91?type=general'),'https://www.douyin.com/jingxuan/search/B%E6%A0%91?type=general');
 });
+
+test('episode lists are sanitized, deduped and omitted when empty',()=>{
+ const item=SG.normalize({url:'https://space.bilibili.com/946974/favlist?fid=123',episodes:[
+  {url:'https://www.bilibili.com/video/BV1xx411c7mD?spm_id_from=abc',title:'<em>第一集</em> 入门',thumbnail:'https://i0.hdslb.com/a.jpg'},
+  {url:'https://www.bilibili.com/video/BV1xx411c7mD',title:'重复链接'},
+  {url:'not-a-url',title:'无效'},
+  {link:'https://www.bilibili.com/video/BV1yf411q7ok',title:'link 字段'}
+ ]});
+ assert.equal(item.episodes.length,2);
+ assert.equal(item.episodes[0].url,'https://www.bilibili.com/video/BV1xx411c7mD');
+ assert.equal(item.episodes[0].title,'第一集 入门');
+ assert.equal(item.episodes[1].url,'https://www.bilibili.com/video/BV1yf411q7ok');
+ assert.equal(SG.normalize({url:'https://example.com/a'}).episodes,undefined);
+});
