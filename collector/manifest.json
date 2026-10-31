@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "拾光 · 一键收藏",
   "description": "快捷键或网页右键收藏，可填写分类和收藏原因，自动归入拾光知识库。",
-  "version": "1.6.38",
+  "version": "1.6.39",
   "permissions": [
     "activeTab",
     "scripting",

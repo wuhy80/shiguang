@@ -28,12 +28,22 @@ function captureRaw(){
   const host=location.hostname,clean=t=>String(t||'').replace(/^【?抖音】?\s*/,'').replace(/\s*[-–—|·｜]\s*抖音.*$/,'').trim();
   if(host.endsWith('douyin.com')){
    const pageId=location.pathname.match(/\/collection\/(\d+)(?:\/|$)/)?.[1];
-   const link=[...document.querySelectorAll('a[href*="/collection/"]')].map(a=>({id:(a.getAttribute('href')||'').match(/\/collection\/(\d+)/)?.[1],text:(a.innerText||a.textContent||'').replace(/\s+/g,' ').trim()})).find(x=>x.id&&x.text);
-   const id=pageId||link&&link.id;
-   if(id){
-    const episodes=pageId?[...document.querySelectorAll('a[href*="/video/"]')].map(a=>{try{return{url:new URL(a.getAttribute('href'),'https://www.douyin.com').href,title:(a.getAttribute('title')||a.innerText||'').replace(/\s+/g,' ').trim()}}catch{return null}}).filter(e=>e&&/^https:\/\/www\.douyin\.com\/video\/\d+/.test(e.url)&&e.title).filter((e,i,all)=>all.findIndex(x=>x.url===e.url)===i).slice(0,50):null;
-    const cover=[...document.querySelectorAll('img')].map(img=>img.currentSrc||img.src).find(src=>/douyinpic|byteimg/.test(src))||'';
-    result.collection={url:'https://www.douyin.com/collection/'+id,title:clean(pageId?document.title:link&&link.text)||'抖音合集',thumbnail:result.thumbnail||cover,episodes:episodes&&episodes.length?episodes:null};
+   const h2=[...document.querySelectorAll('h2')].find(h=>/合集/.test(h.textContent||''));
+   let root=null;
+   if(h2){root=h2;for(let i=0;i<6&&root.parentElement;i++){root=root.parentElement;if(root.querySelector('ul li a[href*="/video/"]'))break;}}
+   const anchors=root&&root!==h2?[...root.querySelectorAll('ul li a[href*="/video/"]')]:(pageId?[...document.querySelectorAll('a[href*="/video/"]')]:[]);
+   if((h2&&anchors.length)||pageId){
+    const byId={};
+    for(const a of anchors){
+     const id=(a.getAttribute('href')||'').match(/\/video\/(\d+)/)?.[1];if(!id)continue;
+     const text=(a.innerText||'').replace(/\s+/g,' ').trim(),alt=(a.querySelector('img')?.alt||'').trim();
+     const cur=byId[id]||(byId[id]={url:'https://www.douyin.com/video/'+id,title:'',alt:''});
+     if(/\d+\s*\|\s*/.test(text)&&(!cur.title||text.length>cur.title.length))cur.title=text;
+     if(alt&&alt.includes('合集')&&alt.length>cur.alt.length)cur.alt=alt;
+    }
+    const name=clean(h2?h2.textContent:'').replace(/^合集\s*[·•]?\s*/,'').trim();
+    const episodes=Object.values(byId).map((v,i)=>({url:v.url,title:v.title||v.alt||'第'+(i+1)+'集',thumbnail:''})).slice(0,50);
+    if(name||episodes.length)result.collection={url:pageId?'https://www.douyin.com/collection/'+pageId:result.url,title:name||'抖音合集',thumbnail:result.thumbnail||'',episodes:episodes.length?episodes:null};
    }
   }else if(host.endsWith('bilibili.com')){
    const state=window.__INITIAL_STATE__,season=state&&(state.videoData&&state.videoData.ugc_season||state.ugc_season)||null;
