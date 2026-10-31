@@ -53,3 +53,6 @@
 .episode-row img{width:64px;height:40px;object-fit:cover;border-radius:5px;flex:none;background:#efece3}
 .episode-index{width:24px;text-align:center;flex:none;font-size:12px;color:#8a8676}
 .episode-title{font-size:13px;line-height:1.45}
+
+/* 有每集数据的合集条目：点卡片弹详情而非跳原平台 */
+a.cover[data-detail],a.card-title[data-detail]{cursor:pointer}
