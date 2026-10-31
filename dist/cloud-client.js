@@ -58,6 +58,7 @@
  function schedule(){clearTimeout(debounce);debounce=setTimeout(()=>sync().catch(()=>{}),700);}
  const api={client,user,message:'登录后自动同步',sync,schedule,
   async requestCode(email){const {error}=await client.auth.signInWithOtp({email,options:{shouldCreateUser:true,emailRedirectTo:'https://wuhy80.github.io/shiguang/'}});if(error)throw error;},
+  async signInWithGitHub(){const {error}=await client.auth.signInWithOAuth({provider:'github',options:{redirectTo:'https://wuhy80.github.io/shiguang/'}});if(error)throw error;},
   async verifyCode(email,token){const {data,error}=await client.auth.verifyOtp(ShiguangAuthInput.parse(token,config.url,email));if(error)throw error;bind(data.user);await sync();},
   async signOut(){
    // Flush before switching identities; on failure keep the session and all pending work.
