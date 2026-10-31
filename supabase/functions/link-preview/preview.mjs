@@ -103,6 +103,10 @@ export async function preview(value,fetcher=fetch){
   if(u.hostname.endsWith('bilibili.com')&&(u.pathname.includes('/favlist')||u.pathname.includes('/channel/collectiondetail')||u.pathname.includes('/channel/seriesdetail'))){
    try{const meta=await bilibiliCollection(u,fetcher);if(meta)return {...meta,url};console.warn('preview_bilibili_collection','no metadata');}catch(error){console.warn('preview_bilibili_collection',error.message);}
   }
+  if(u.hostname.endsWith('youtube.com')||u.hostname==='youtu.be'){
+   const vid=u.pathname==='/watch'&&/^[\w-]{6,}$/.test(u.searchParams.get('v')||'')&&u.searchParams.get('v')||u.pathname.match(/^\/(?:shorts|live|embed)\/([\w-]{6,})(?:\/|$)/)?.[1];
+   if(vid){try{const data=await apiJSON('https://www.youtube.com/oembed?format=json&url='+encodeURIComponent('https://www.youtube.com/watch?v='+vid),fetcher);if(data?.title)return {url,thumbnail:imageUrl(data.thumbnail_url||'',url),title:String(data.title).trim()};console.warn('preview_youtube_video','no metadata');}catch(error){console.warn('preview_youtube_video',error.message);}}
+  }
   if(u.hostname.endsWith('youtube.com')&&u.pathname==='/playlist'){
    const lid=u.searchParams.get('list');
    if(lid&&/^[\w-]{12,}$/.test(lid)){try{const meta=await youtubePlaylist(lid,fetcher);if(meta)return {...meta,url};console.warn('preview_youtube_playlist','no metadata');}catch(error){console.warn('preview_youtube_playlist',error.message);}}

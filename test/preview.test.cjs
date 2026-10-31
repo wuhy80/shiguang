@@ -193,3 +193,18 @@ test('bilibili favlists and youtube playlists resolve with episode lists',async(
  const yt=await preview('https://www.youtube.com/playlist?list=PLtest12345678',stub);
  assert.equal(yt.title,'My Playlist');assert.equal(yt.episodes.length,2);assert.equal(yt.episodes[0].url,'https://www.youtube.com/watch?v=abc123_-xYz');
 });
+
+test('single youtube videos resolve through oEmbed even when the page is bot-walled',async()=>{
+ const {preview}=await import('../supabase/functions/link-preview/preview.mjs');
+ const body=bytes=>({getReader(){let done=false;return{read(){if(done)return Promise.resolve({done:true,value:null});done=true;return Promise.resolve({done:false,value:new TextEncoder().encode(bytes)});},cancel(){}}}});
+ const stub=url=>{
+  url=String(url);
+  if(url.includes('oembed'))return Promise.resolve({ok:true,status:200,headers:new Map(),body:body(JSON.stringify({title:'The Essence of Linear Algebra',author_name:'3Blue1Brown',thumbnail_url:'https://i.ytimg.com/vi/fNk_zzaMoSs/hqdefault.jpg'}))});
+  return Promise.resolve({ok:true,status:200,headers:new Map(),body:body('<html><head><title>Sign in to confirm you are not a bot</title></head></html>')});
+ };
+ for(const url of ['https://www.youtube.com/watch?v=fNk_zzaMoSs&vd_source=x','https://youtu.be/fNk_zzaMoSs','https://www.youtube.com/shorts/fNk_zzaMoSs']){
+  const meta=await preview(url,stub);
+  assert.equal(meta.title,'The Essence of Linear Algebra');
+  assert.equal(meta.thumbnail,'https://i.ytimg.com/vi/fNk_zzaMoSs/hqdefault.jpg');
+ }
+});
