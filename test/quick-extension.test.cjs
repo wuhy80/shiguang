@@ -2,7 +2,8 @@ const {test}=require('node:test'),assert=require('node:assert/strict'),fs=requir
 const SG=require('../dist/core.js'),Capture=require('../dist/capture-store.js');
 const path=require('node:path');
 function worker(){
- const events={},db={},listeners=[],windows=[],api={commands:{onCommand:{addListener:fn=>events.command=fn}},contextMenus:{onClicked:{addListener:fn=>events.menu=fn}},windows:{create:async options=>windows.push(options)},alarms:{create(){},onAlarm:{addListener(){}}},runtime:{id:'test-extension',getURL:name=>'chrome-extension://test-extension/'+name,onMessage:{addListener:fn=>listeners.push(fn)},onInstalled:{addListener(){}},onStartup:{addListener(){}}},action:{onClicked:{addListener:fn=>events.click=fn},setBadgeBackgroundColor:async()=>{},setBadgeText:async()=>{},setTitle:async()=>{}},tabs:{query:async query=>query.active?[{id:1}]:[]},storage:{local:{get:async key=>structuredClone({[key]:db[key]}),set:async values=>Object.assign(db,structuredClone(values))}},scripting:{executeScript:async options=>options.args?[]:[{result:String(options.func).includes('/collection/')?{url:'https://www.douyin.com/collection/7598762810813828404',title:'B树详解合集 - 抖音',thumbnail:'https://p3-sign.douyinpic.com/c.webp',selection:''}:{url:'https://www.bilibili.com/video/BV123?vd_source=a',title:'学习视频',selection:'选中的内容'}}]}};
+const capturedResult={url:'https://www.bilibili.com/video/BV123?vd_source=a',title:'学习视频',selection:'选中的内容',collection:{url:'https://space.bilibili.com/946974/channel/collectiondetail?sid=42',title:'机器学习合集',thumbnail:'',episodes:[{url:'https://www.bilibili.com/video/BV1ep1',title:'第1集',thumbnail:''}]}};
+const events={},db={},listeners=[],windows=[],api={commands:{onCommand:{addListener:fn=>events.command=fn}},contextMenus:{onClicked:{addListener:fn=>events.menu=fn}},windows:{create:async options=>windows.push(options)},alarms:{create(){},onAlarm:{addListener(){}}},runtime:{id:'test-extension',getURL:name=>'chrome-extension://test-extension/'+name,onMessage:{addListener:fn=>listeners.push(fn)},onInstalled:{addListener(){}},onStartup:{addListener(){}}},action:{onClicked:{addListener:fn=>events.click=fn},setBadgeBackgroundColor:async()=>{},setBadgeText:async()=>{},setTitle:async()=>{}},tabs:{query:async query=>query.active?[{id:1}]:[]},storage:{local:{get:async key=>structuredClone({[key]:db[key]}),set:async values=>Object.assign(db,structuredClone(values))}},scripting:{executeScript:async options=>options.args?[]:[{result:capturedResult}]}};
  const ctx={URL,chrome:api,importScripts(){},SG,console,crypto:require('node:crypto').webcrypto,pushCloud:async()=>({signedIn:false})};vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../collector/background.js'),'utf8'),ctx);
  const sender={id:'test-extension',tab:{url:'https://wuhy80.github.io/shiguang/'}};
  const send=(data,from)=>new Promise(resolve=>{let handled=false;for(const listener of listeners)if(listener(data,from,resolve)===true)handled=true;if(!handled)resolve(undefined);});
@@ -101,12 +102,22 @@ test('stale shortcut handles synchronous invalidation and stops messaging',()=>{
  assert.equal(sends,1);
 });
 
-test('douyin collection menu drafts the canonical collection page',async()=>{
- const w=worker();await w.events.menu({menuItemId:'shiguang-douyin-collection'},{id:1});
- assert.equal(w.windows.length,1);
+
+test('capture detects a collection and defaults to saving it with episodes',async()=>{
+ const w=worker();await w.events.click({id:1});
  const id=Object.keys(w.db.captureDrafts).at(-1);
- assert.equal(w.db.captureDrafts[id].raw.url,'https://www.douyin.com/collection/7598762810813828404');
- await w.editor({type:'SHIGUANG_CAPTURE_SAVE',id,tags:'合集',reason:''});
+ const got=await w.editor({type:'SHIGUANG_CAPTURE_GET',id});
+ assert.equal(got.collection.title,'机器学习合集');assert.equal(got.collection.episodes.length,1);
+ assert.equal((await w.editor({type:'SHIGUANG_CAPTURE_SAVE',id,tags:'学习',reason:'',asCollection:true})).ok,true);
  const items=(await w.message({type:'SHIGUANG_PENDING'})).items;
- assert.equal(items.length,1);assert.equal(items[0].platform,'douyin');assert.equal(items[0].type,'video');
+ assert.equal(items[0].url,'https://space.bilibili.com/946974/channel/collectiondetail?sid=42');
+ assert.equal(items[0].title,'机器学习合集');assert.equal(items[0].platform,'bilibili');
+ assert.equal(items[0].episodes.length,1);assert.equal(items[0].episodes[0].url,'https://www.bilibili.com/video/BV1ep1');
+});
+test('unchecking the collection toggle keeps the single video entry',async()=>{
+ const w=worker();await w.events.click({id:1});
+ const id=Object.keys(w.db.captureDrafts).at(-1);
+ assert.equal((await w.editor({type:'SHIGUANG_CAPTURE_SAVE',id,tags:'',reason:'',asCollection:false})).ok,true);
+ const items=(await w.message({type:'SHIGUANG_PENDING'})).items;
+ assert.equal(items[0].url,'https://www.bilibili.com/video/BV123');assert.equal(items[0].episodes,undefined);
 });

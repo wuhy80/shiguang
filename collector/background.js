@@ -19,10 +19,50 @@ async function tell(tabId,text){
   document.documentElement.append(notice);setTimeout(()=>notice.remove(),3500);
  },args:[text]});}catch{}
 }
+// Runs inside the captured page. Returns the raw capture plus a best-effort
+// collection payload when the page exposes one (B站 structure data, douyin
+// collection panels, YouTube list links). Any failure degrades to a plain capture.
+function captureRaw(){
+ const result={url:location.href,title:document.title,thumbnail:document.querySelector('meta[property="og:image"],meta[name="twitter:image"]')?.content||'',selection:(typeof getSelection!=='undefined'?getSelection().toString():'').slice(0,5000),createdAt:new Date().toISOString(),collection:null};
+ try{
+  const host=location.hostname,clean=t=>String(t||'').replace(/^【?抖音】?\s*/,'').replace(/\s*[-–—|·｜]\s*抖音.*$/,'').trim();
+  if(host.endsWith('douyin.com')){
+   const pageId=location.pathname.match(/\/collection\/(\d+)(?:\/|$)/)?.[1];
+   const link=[...document.querySelectorAll('a[href*="/collection/"]')].map(a=>({id:(a.getAttribute('href')||'').match(/\/collection\/(\d+)/)?.[1],text:(a.innerText||a.textContent||'').replace(/\s+/g,' ').trim()})).find(x=>x.id&&x.text);
+   const id=pageId||link&&link.id;
+   if(id){
+    const episodes=pageId?[...document.querySelectorAll('a[href*="/video/"]')].map(a=>{try{return{url:new URL(a.getAttribute('href'),'https://www.douyin.com').href,title:(a.getAttribute('title')||a.innerText||'').replace(/\s+/g,' ').trim()}}catch{return null}}).filter(e=>e&&/^https:\/\/www\.douyin\.com\/video\/\d+/.test(e.url)&&e.title).filter((e,i,all)=>all.findIndex(x=>x.url===e.url)===i).slice(0,50):null;
+    const cover=[...document.querySelectorAll('img')].map(img=>img.currentSrc||img.src).find(src=>/douyinpic|byteimg/.test(src))||'';
+    result.collection={url:'https://www.douyin.com/collection/'+id,title:clean(pageId?document.title:link&&link.text)||'抖音合集',thumbnail:result.thumbnail||cover,episodes:episodes&&episodes.length?episodes:null};
+   }
+  }else if(host.endsWith('bilibili.com')){
+   const state=window.__INITIAL_STATE__,season=state&&(state.videoData&&state.videoData.ugc_season||state.ugc_season)||null;
+   const fid=location.search.match(/[?&]fid=(\d+)/)?.[1]||(document.querySelector('a[href*="favlist?fid="]')?.getAttribute('href')||'').match(/fid=(\d+)/)?.[1];
+   if(season&&season.id){
+    const episodes=[];
+    for(const section of season.sections||[]){for(const e of section&&section.episodes||[]){if(episodes.length>=50)break;if(e&&e.bvid){const pic=String(e.pic||'');episodes.push({url:'https://www.bilibili.com/video/'+e.bvid,title:String(e.title||'').replace(/<[^>]*>/g,'').replace(/\s+/g,' ').trim(),thumbnail:pic.startsWith('//')?'https:'+pic:pic});}}}
+    const mid=season.mid||state.videoData&&state.videoData.owner&&state.videoData.owner.mid||'';
+    const cover=String(season.cover||'');
+    result.collection={url:'https://space.bilibili.com/'+mid+'/channel/collectiondetail?sid='+season.id,title:String(season.title||'').trim()||clean(document.title),thumbnail:cover.startsWith('//')?'https:'+cover:cover||result.thumbnail||episodes[0]?.thumbnail||'',episodes:episodes.length?episodes:null};
+   }else if(fid){
+    result.collection={url:location.origin+'/favlist?fid='+fid,title:(document.title.split('_')[0]||'').trim()||'B站收藏夹',thumbnail:result.thumbnail||'',episodes:null};
+   }
+  }else if(host.endsWith('youtube.com')||host==='youtu.be'||host==='m.youtube.com'||host==='music.youtube.com'){
+   const lid=location.search.match(/[?&]list=([\w-]+)/)?.[1];
+   if(lid&&!/^(RD|UL|LL)/.test(lid)){
+    const name=document.querySelector('ytd-playlist-panel-renderer #playlist-name,h3.ytd-playlist-panel-renderer,ytd-playlist-metadata-header-renderer h3')?.textContent?.trim();
+    result.collection={url:'https://www.youtube.com/playlist?list='+lid,title:clean(name)||clean(document.title).replace(/\s*-\s*YouTube$/,'')||'YouTube 播放列表',thumbnail:result.thumbnail||'',episodes:null};
+   }
+  }
+ }catch{}
+ return result;
+}
 async function openCapture(tab,info={}){
  try{
   if(!tab.id)throw Error('没有活动网页');
-  const result=info.raw||((await chrome.scripting.executeScript({target:{tabId:tab.id},func:()=>({url:location.href,title:document.title,thumbnail:document.querySelector('meta[property="og:image"],meta[name="twitter:image"]')?.content||'',selection:getSelection().toString().slice(0,5000),createdAt:new Date().toISOString()})}))[0].result);
+  const captured=info.raw||((await chrome.scripting.executeScript({target:{tabId:tab.id},func:captureRaw}))[0].result);
+  const collection=captured&&captured.collection||null;
+  const result=info.raw||{url:captured.url,title:captured.title,thumbnail:captured.thumbnail||'',selection:captured.selection||'',createdAt:captured.createdAt||new Date().toISOString()};
   if(info.linkUrl){result.url=info.linkUrl;result.title=info.selectionText||info.linkUrl;result.thumbnail='';}
   if(!SG.safeUrl(result.url))throw Error('请在普通网页上收藏');
   const ownership=await chrome.storage.local.get('shiguang.extension.owner');
@@ -30,26 +70,11 @@ async function openCapture(tab,info={}){
   await locked(async()=>{
    const drafts=(await chrome.storage.local.get('captureDrafts')).captureDrafts||{};
    for(const [key,draft] of Object.entries(drafts))if(Date.now()-draft.time>86400000)delete drafts[key];
-   drafts[id]={raw:result,tabId:tab.id,owner:ownership['shiguang.extension.owner']||null,time:Date.now()};
+   drafts[id]={raw:result,collection,tabId:tab.id,owner:ownership['shiguang.extension.owner']||null,time:Date.now()};
    await chrome.storage.local.set({captureDrafts:drafts});
   });
   await chrome.windows.create({url:chrome.runtime.getURL('capture.html')+'?draft='+encodeURIComponent(id),type:'popup',width:480,height:620});
  }catch(e){await badge('!','#a44d3c');await chrome.action.setTitle({title:'未保存：'+e.message});if(tab?.id)await tell(tab.id,'拾光：未保存，'+e.message);}
-}
-async function openDouyinCollection(tab){
- try{
-  if(!tab.id)throw Error('没有活动网页');
-  const result=((await chrome.scripting.executeScript({target:{tabId:tab.id},func:()=>{
-   const id=location.pathname.match(/\/collection\/(\d+)(?:\/|$)/)?.[1];
-   if(!id)return null;
-   const clean=t=>String(t||'').replace(/^【?抖音】?\s*/,'').replace(/\s*[-–—|·｜]\s*抖音.*$/,'').trim();
-   const cover=document.querySelector('meta[property="og:image"],meta[name="twitter:image"]')?.content
-    ||[...document.querySelectorAll('img')].map(img=>img.currentSrc||img.src).find(src=>/douyinpic|byteimg/.test(src))||'';
-   return {url:'https://www.douyin.com/collection/'+id,title:clean(document.title)||'抖音合集',thumbnail:cover,selection:'',createdAt:new Date().toISOString()};
-  }})))[0].result;
-  if(!result)throw Error('请在合集页面上使用（地址栏需包含 /collection/）');
-  await openCapture(tab,{raw:result});
- }catch(e){await badge('!','#a44d3c');if(tab?.id)await tell(tab.id,'拾光：'+e.message);}
 }
 async function finishCapture(tabId,saved){
  try{
@@ -65,14 +90,15 @@ chrome.action.onClicked.addListener(tab=>openCapture(tab));
 chrome.commands.onCommand.addListener(async command=>{
  if(command==='save-current-page'){const [tab]=await chrome.tabs.query({active:true,currentWindow:true});if(tab)await openCapture(tab);}
 });
-chrome.contextMenus.onClicked.addListener((info,tab)=>{if(info.menuItemId==='shiguang-save')return openCapture(tab,info);if(info.menuItemId==='shiguang-douyin-collection')return openDouyinCollection(tab);});
+chrome.contextMenus.onClicked.addListener((info,tab)=>{if(info.menuItemId==='shiguang-save')return openCapture(tab,info);});
 async function saveDraft(message){
  const result=await locked(async()=>{
   const drafts=(await chrome.storage.local.get('captureDrafts')).captureDrafts||{},draft=drafts[message.id];
   if(!draft)throw Error('收藏窗口已过期，请回到网页重新收藏');
   const owner=(await chrome.storage.local.get('shiguang.extension.owner'))['shiguang.extension.owner']||null;
   if(owner!==draft.owner)throw Error('账号已切换，请重新打开收藏窗口');
-  const item=SG.normalize({...draft.raw,tags:String(message.tags||''),notes:[String(message.reason||'').trim(),draft.raw.selection?'摘录：'+draft.raw.selection:''].filter(Boolean).join('\n\n')});
+  const useCollection=message.asCollection&&draft.collection;
+  const item=SG.normalize({...useCollection?{...draft.raw,...draft.collection}:{...draft.raw},tags:String(message.tags||''),notes:[String(message.reason||'').trim(),draft.raw.selection?'摘录：'+draft.raw.selection:''].filter(Boolean).join('\n\n')});
   if(!item)throw Error('链接无效，尚未保存');if(owner)item.cloudOwner=owner;
   const queue=await pending();const duplicate=queue.some(x=>SG.canonical(x.url)===item.url&&(x.cloudOwner||null)===owner);
   if(!duplicate){queue.push(item);await chrome.storage.local.set({[QUEUE]:queue});}
@@ -91,7 +117,7 @@ chrome.runtime.onMessage.addListener((message,sender,respond)=>{
  }
  const fromCapture=sender.url?.startsWith(chrome.runtime.getURL('capture.html')+'?');
  if(fromCapture&&message.type==='SHIGUANG_CAPTURE_GET'){
-  locked(async()=>{const drafts=(await chrome.storage.local.get('captureDrafts')).captureDrafts||{};const draft=drafts[message.id];if(!draft)throw Error('收藏窗口已过期');const items=await pending();const tags=await rememberCategories(draft.owner,items.filter(x=>(x.cloudOwner||null)===draft.owner).flatMap(x=>x.tags||[]));return {title:draft.raw.title,url:draft.raw.url,selection:draft.raw.selection||'',tags};}).then(respond).catch(e=>respond({error:e.message}));return true;
+  locked(async()=>{const drafts=(await chrome.storage.local.get('captureDrafts')).captureDrafts||{};const draft=drafts[message.id];if(!draft)throw Error('收藏窗口已过期');const items=await pending();const tags=await rememberCategories(draft.owner,items.filter(x=>(x.cloudOwner||null)===draft.owner).flatMap(x=>x.tags||[]));return {title:draft.raw.title,url:draft.raw.url,selection:draft.raw.selection||'',tags,collection:draft.collection||null};}).then(respond).catch(e=>respond({error:e.message}));return true;
  }
  if(fromCapture&&message.type==='SHIGUANG_CAPTURE_SAVE'){
   saveDraft(message).then(result=>{respond({ok:true,duplicate:result.duplicate});return finishCapture(result.tabId,result);}).catch(e=>respond({error:e.message}));return true;
@@ -107,7 +133,7 @@ chrome.runtime.onMessage.addListener((message,sender,respond)=>{
   locked(async()=>{const ids=new Set(message.ids);const queue=(await pending()).filter(x=>!ids.has(x.id));await chrome.storage.local.set({[QUEUE]:queue});await badge(queue.length?String(queue.length):'');return{ok:true};}).then(respond).catch(()=>respond({error:'无法确认归档'}));return true;
  }
 });
-function registerMenu(){chrome.contextMenus.removeAll(()=>{chrome.contextMenus.create({id:'shiguang-save',title:'收藏到拾光…',contexts:['page','selection','link'],documentUrlPatterns:['http://*/*','https://*/*']});chrome.contextMenus.create({id:'shiguang-douyin-collection',title:'收藏此合集到拾光…',contexts:['page'],documentUrlPatterns:['https://www.douyin.com/collection/*','https://m.douyin.com/collection/*']});});}
+function registerMenu(){chrome.contextMenus.removeAll(()=>{chrome.contextMenus.create({id:'shiguang-save',title:'收藏到拾光…',contexts:['page','selection','link'],documentUrlPatterns:['http://*/*','https://*/*']});});}
 chrome.runtime.onInstalled.addListener(()=>{chrome.action.setTitle({title:'收藏到拾光 · Alt+Shift+S'});registerMenu();});
 chrome.runtime.onStartup.addListener(registerMenu);
 

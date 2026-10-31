@@ -2,7 +2,7 @@
 const transport=window.ShiguangCaptureTransport||chrome.runtime,closeCapture=()=>window.ShiguangCloseCapture?window.ShiguangCloseCapture():window.close();
 const id=new URLSearchParams(location.search).get('draft'),status=document.getElementById('status'),save=document.getElementById('save');
 const input=document.getElementById('tags'),options=document.getElementById('categories'),selectedBox=document.getElementById('selected-tags');
-let known=[],selected=[],active=-1;
+let known=[],selected=[],active=-1,collection=null;
 function hideCategories(){options.hidden=true;input.setAttribute('aria-expanded','false');input.removeAttribute('aria-activedescendant');}
 function addCategory(value){
  const tag=value.trim().slice(0,60);if(!tag)return;
@@ -46,13 +46,15 @@ async function load(){
   document.getElementById('title').textContent=draft.title;document.getElementById('url').textContent=draft.url;
   known=[...new Set(draft.tags||[])];
   if(draft.selection){document.getElementById('excerpt').hidden=false;document.getElementById('selection').textContent=draft.selection;}
+  collection=draft.collection||null;
+  if(collection){document.getElementById('collection-toggle').hidden=false;document.getElementById('collection-name').textContent='检测到：'+(collection.title||collection.url);}
   save.disabled=false;document.getElementById('tags').focus();
  }catch(error){status.textContent=error.message;}
 }
 document.getElementById('capture-form').onsubmit=async event=>{
  event.preventDefault();if(save.disabled)return;if(input.value.trim())addCategory(input.value);hideCategories();save.disabled=true;status.textContent='正在保存…';
  try{
-  const result=await transport.sendMessage({type:'SHIGUANG_CAPTURE_SAVE',id,tags:selected.join('，'),reason:document.getElementById('reason').value});
+  const result=await transport.sendMessage({type:'SHIGUANG_CAPTURE_SAVE',id,tags:selected.join('，'),reason:document.getElementById('reason').value,asCollection:collection?document.getElementById('as-collection').checked:undefined});
   if(!result?.ok)throw Error(result?.error||'未保存，请重试');
   status.textContent=result.duplicate?'这条内容已收藏，保留原有笔记。':'已收下，联网后自动同步。';
   setTimeout(()=>closeCapture(),900);
