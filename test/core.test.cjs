@@ -33,3 +33,9 @@ test('Douyin collection modal links canonicalize to the public video page and de
  const r=SG.merge([],[{url:modal,title:'x'},{url:'https://www.douyin.com/video/7617464281105321235',title:'y'}]);
  assert.equal(r.added,1);assert.equal(r.duplicates,1);
 });
+
+test('Douyin search pages with a video modal_id also canonicalize to the video',()=>{
+ assert.equal(SG.canonical('https://www.douyin.com/jingxuan/search/B%E6%A0%91?aid=5326b129-d1a9-4ab6-b5cd-3ee4c5cfe210&modal_id=7598762810813828404&type=general'),'https://www.douyin.com/video/7598762810813828404');
+ assert.equal(SG.canonical('https://www.douyin.com/collection/1234567890123456789?previous_page=app_code_link'),'https://www.douyin.com/collection/1234567890123456789');
+ assert.equal(SG.canonical('https://www.douyin.com/jingxuan/search/B%E6%A0%91?type=general'),'https://www.douyin.com/jingxuan/search/B%E6%A0%91?type=general');
+});
