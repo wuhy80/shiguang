@@ -104,7 +104,7 @@ export async function preview(value,fetcher=fetch){
    try{const meta=await bilibiliCollection(u,fetcher);if(meta)return {...meta,url};console.warn('preview_bilibili_collection','no metadata');}catch(error){console.warn('preview_bilibili_collection',error.message);}
   }
   if(u.hostname.endsWith('youtube.com')||u.hostname==='youtu.be'){
-   const vid=u.pathname==='/watch'&&/^[\w-]{6,}$/.test(u.searchParams.get('v')||'')&&u.searchParams.get('v')||u.pathname.match(/^\/(?:shorts|live|embed)\/([\w-]{6,})(?:\/|$)/)?.[1];
+   const vid=u.pathname==='/watch'&&/^[\w-]{6,}$/.test(u.searchParams.get('v')||'')?u.searchParams.get('v'):u.hostname==='youtu.be'&&/^[\w-]{6,}$/.test(u.pathname.slice(1))?u.pathname.slice(1):u.pathname.match(/^\/(?:shorts|live|embed)\/([\w-]{6,})(?:\/|$)/)?.[1];
    if(vid){try{const data=await apiJSON('https://www.youtube.com/oembed?format=json&url='+encodeURIComponent('https://www.youtube.com/watch?v='+vid),fetcher);if(data?.title)return {url,thumbnail:imageUrl(data.thumbnail_url||'',url),title:String(data.title).trim()};console.warn('preview_youtube_video','no metadata');}catch(error){console.warn('preview_youtube_video',error.message);}}
   }
   if(u.hostname.endsWith('youtube.com')&&u.pathname==='/playlist'){
@@ -113,7 +113,7 @@ export async function preview(value,fetcher=fetch){
   }
   const response=await request(url);
   if([301,302,303,307,308].includes(response.status)){const next=response.headers.get('location');if(!next)break;url=new URL(next,url).href;if(!allowed(url))throw Error('unsupported_redirect');continue;}
-  if(!response.ok)throw Error('upstream_unavailable');const meta=parseMeta(await limitedText(response),url);return /验证码|安全验证|captcha|verify/i.test(meta.title)?{url,thumbnail:'',title:''}:meta;
+  if(!response.ok)throw Error('upstream_unavailable');const meta=parseMeta(await limitedText(response),url);return /验证码|安全验证|captcha|verify|not a bot/i.test(meta.title)?{url,thumbnail:'',title:''}:meta;
  }
  return {url,thumbnail:'',title:''};
 }
