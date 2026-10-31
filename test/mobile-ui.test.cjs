@@ -14,15 +14,15 @@ test('every calibratable platform and supported variant is included in the acces
  assert.match(activity,/String pkg=FavoriteRules.PACKAGES\[index\]/);
 });
 
-test('login opens immediately even when initial session lookup is still pending; slow sends show feedback',async()=>{
+test('login opens immediately even when initial session lookup is still pending; slow redirects show feedback',async()=>{
  const elements={},timers=[];let opened='';
  const element=id=>elements[id]??=( {value:'test@example.com',disabled:false,textContent:'',reportValidity:()=>true} );
- const page={window:{ShiguangCloud:{ready:new Promise(()=>{}),user:null,requestCode:()=>new Promise(()=>{})},addEventListener(){}},document:{getElementById:element},openModal:(title)=>opened=title,esc:x=>x,setTimeout:fn=>{timers.push(fn);return timers.length;},clearTimeout(){},Promise};
+ const page={window:{ShiguangCloud:{ready:new Promise(()=>{}),user:null,signInWithGitHub:()=>new Promise(()=>{})},addEventListener(){}},document:{getElementById:element},openModal:(title)=>opened=title,esc:x=>x,setTimeout:fn=>{timers.push(fn);return timers.length;},clearTimeout(){},Promise};
  vm.runInNewContext(fs.readFileSync('dist/cloud-ui.js','utf8'),page);
  element('cloud-account').onclick();assert.match(opened,/登录/);
- const pending=element('cloud-send').onclick({target:element('cloud-send')});
- assert.equal(element('cloud-feedback').textContent,'正在发送登录邮件…');assert.equal(element('cloud-send').disabled,true);
- timers[0]();await pending;assert.match(element('cloud-feedback').textContent,/连接超时/);assert.equal(element('cloud-send').disabled,false);
+ const pending=element('cloud-github').onclick({target:element('cloud-github')});
+ assert.equal(element('cloud-feedback').textContent,'正在跳转到 GitHub 授权…');assert.equal(element('cloud-github').disabled,true);
+ timers[0]();await pending;assert.match(element('cloud-feedback').textContent,/连接超时/);assert.equal(element('cloud-github').disabled,false);
 });
 
 test('brand resolves to a real packaged page; removed floating collector is not wired up',()=>{
