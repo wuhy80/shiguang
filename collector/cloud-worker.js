@@ -27,7 +27,7 @@ async function cloudMessage(message){
  const client=getCloud();
  if(message.type==='SHIGUANG_CLOUD_STATUS'){const {data,error}=await client.auth.getSession();if(error)throw error;return{email:data.session?.user.email||null};}
  if(message.type==='SHIGUANG_CLOUD_SEND'){
-  const {error}=await client.auth.signInWithOtp({email:message.email,options:{shouldCreateUser:true,emailRedirectTo:'https://jiangxixu.github.io/shiguang/'}});if(error)throw error;return{ok:true};
+  const {error}=await client.auth.signInWithOtp({email:message.email,options:{shouldCreateUser:true,emailRedirectTo:'https://wuhy80.github.io/shiguang/'}});if(error)throw error;return{ok:true};
  }
  if(message.type==='SHIGUANG_CLOUD_VERIFY'){
   const {data,error}=await client.auth.verifyOtp(ShiguangAuthInput.parse(message.token,ShiguangCloudConfig.url,message.email));if(error)throw error;

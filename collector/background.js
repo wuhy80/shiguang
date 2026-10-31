@@ -1,6 +1,6 @@
 'use strict';
 importScripts('core.js','cloud-config.js','auth-input.js','supabase.js','cloud-worker.js');
-const SITE='https://jiangxixu.github.io/shiguang/';
+const SITE='https://wuhy80.github.io/shiguang/';
 const QUEUE='quickCaptureQueue';
 let serial=Promise.resolve();
 function locked(work){const next=serial.then(work);serial=next.catch(()=>{});return next;}
@@ -36,6 +36,21 @@ async function openCapture(tab,info={}){
   await chrome.windows.create({url:chrome.runtime.getURL('capture.html')+'?draft='+encodeURIComponent(id),type:'popup',width:480,height:620});
  }catch(e){await badge('!','#a44d3c');await chrome.action.setTitle({title:'未保存：'+e.message});if(tab?.id)await tell(tab.id,'拾光：未保存，'+e.message);}
 }
+async function openDouyinCollection(tab){
+ try{
+  if(!tab.id)throw Error('没有活动网页');
+  const result=((await chrome.scripting.executeScript({target:{tabId:tab.id},func:()=>{
+   const id=location.pathname.match(/\/collection\/(\d+)(?:\/|$)/)?.[1];
+   if(!id)return null;
+   const clean=t=>String(t||'').replace(/^【?抖音】?\s*/,'').replace(/\s*[-–—|·｜]\s*抖音.*$/,'').trim();
+   const cover=document.querySelector('meta[property="og:image"],meta[name="twitter:image"]')?.content
+    ||[...document.querySelectorAll('img')].map(img=>img.currentSrc||img.src).find(src=>/douyinpic|byteimg/.test(src))||'';
+   return {url:'https://www.douyin.com/collection/'+id,title:clean(document.title)||'抖音合集',thumbnail:cover,selection:'',createdAt:new Date().toISOString()};
+  }})))[0].result;
+  if(!result)throw Error('请在合集页面上使用（地址栏需包含 /collection/）');
+  await openCapture(tab,{raw:result});
+ }catch(e){await badge('!','#a44d3c');if(tab?.id)await tell(tab.id,'拾光：'+e.message);}
+}
 async function finishCapture(tabId,saved){
  try{
   await badge('✓');
@@ -50,7 +65,7 @@ chrome.action.onClicked.addListener(tab=>openCapture(tab));
 chrome.commands.onCommand.addListener(async command=>{
  if(command==='save-current-page'){const [tab]=await chrome.tabs.query({active:true,currentWindow:true});if(tab)await openCapture(tab);}
 });
-chrome.contextMenus.onClicked.addListener((info,tab)=>{if(info.menuItemId==='shiguang-save')return openCapture(tab,info);});
+chrome.contextMenus.onClicked.addListener((info,tab)=>{if(info.menuItemId==='shiguang-save')return openCapture(tab,info);if(info.menuItemId==='shiguang-douyin-collection')return openDouyinCollection(tab);});
 async function saveDraft(message){
  const result=await locked(async()=>{
   const drafts=(await chrome.storage.local.get('captureDrafts')).captureDrafts||{},draft=drafts[message.id];
@@ -92,7 +107,7 @@ chrome.runtime.onMessage.addListener((message,sender,respond)=>{
   locked(async()=>{const ids=new Set(message.ids);const queue=(await pending()).filter(x=>!ids.has(x.id));await chrome.storage.local.set({[QUEUE]:queue});await badge(queue.length?String(queue.length):'');return{ok:true};}).then(respond).catch(()=>respond({error:'无法确认归档'}));return true;
  }
 });
-function registerMenu(){chrome.contextMenus.removeAll(()=>{chrome.contextMenus.create({id:'shiguang-save',title:'收藏到拾光…',contexts:['page','selection','link'],documentUrlPatterns:['http://*/*','https://*/*']});});}
+function registerMenu(){chrome.contextMenus.removeAll(()=>{chrome.contextMenus.create({id:'shiguang-save',title:'收藏到拾光…',contexts:['page','selection','link'],documentUrlPatterns:['http://*/*','https://*/*']});chrome.contextMenus.create({id:'shiguang-douyin-collection',title:'收藏此合集到拾光…',contexts:['page'],documentUrlPatterns:['https://www.douyin.com/collection/*','https://m.douyin.com/collection/*']});});}
 chrome.runtime.onInstalled.addListener(()=>{chrome.action.setTitle({title:'收藏到拾光 · Alt+Shift+S'});registerMenu();});
 chrome.runtime.onStartup.addListener(registerMenu);
 

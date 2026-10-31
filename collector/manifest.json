@@ -11,8 +11,8 @@
     "contextMenus"
   ],
   "host_permissions": [
-    "https://jiangxixu.github.io/*",
-    "https://pkgsgkrjhcckmcjqdzws.supabase.co/*"
+    "https://wuhy80.github.io/*",
+    "https://kvvjiwmhrbiilbveddfn.supabase.co/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -28,7 +28,7 @@
     },
     {
       "matches": [
-        "https://jiangxixu.github.io/shiguang/*"
+        "https://wuhy80.github.io/shiguang/*"
       ],
       "js": [
         "core.js",
