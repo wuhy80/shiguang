@@ -45,6 +45,16 @@ function captureRaw(){
     const episodes=Object.values(byId).map((v,i)=>({url:v.url,title:v.title||v.alt||'第'+(i+1)+'集',thumbnail:''})).slice(0,50);
     if(name||episodes.length)result.collection={url:pageId?'https://www.douyin.com/collection/'+pageId:result.url,title:name||'抖音合集',thumbnail:result.thumbnail||'',episodes:episodes.length?episodes:null};
    }
+  }
+  if(host.endsWith('douyin.com')&&!result.collection){
+   // 收藏弹窗页：弹窗播放器标着「合集 · 名字」，背景收藏网格的合集卡片锚点带合集 ID，按名字匹配。
+   const names=[...new Set([...document.querySelectorAll('span,div')].filter(e=>!e.children.length).map(e=>(e.textContent||'').trim().match(/^合集\s*[·•]\s*(\S[^\n]*)$/)?.[1]).filter(Boolean))];
+   if(names.length){
+    let name=names[0];
+    if(names.length>1){const video=document.querySelector('video');for(let p=video&&video.parentElement,i=0;p&&i<10;p=p.parentElement,i++){const inner=[...p.querySelectorAll('span,div')].filter(e=>!e.children.length).map(e=>(e.textContent||'').trim().match(/^合集\s*[·•]\s*(\S[^\n]*)$/)?.[1]).find(Boolean);if(inner){name=inner;break;}}}
+    const card=[...document.querySelectorAll('a[href*="/collection/"]')].map(a=>({id:(a.getAttribute('href')||'').match(/\/collection\/(\d+)/)?.[1],text:(a.innerText||'').replace(/\s+/g,'')})).find(x=>x.id&&name&&x.text.includes(name));
+    if(card&&card.id)result.collection={url:'https://www.douyin.com/collection/'+card.id,title:name,thumbnail:result.thumbnail||'',episodes:null};
+   }
   }else if(host.endsWith('bilibili.com')){
    const state=window.__INITIAL_STATE__,season=state&&(state.videoData&&state.videoData.ugc_season||state.ugc_season)||null;
    const fid=location.search.match(/[?&]fid=(\d+)/)?.[1]||(document.querySelector('a[href*="favlist?fid="]')?.getAttribute('href')||'').match(/fid=(\d+)/)?.[1];
