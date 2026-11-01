@@ -4,7 +4,7 @@ const path=require('node:path');
 function worker(){
 const capturedResult={url:'https://www.bilibili.com/video/BV123?vd_source=a',title:'学习视频',selection:'选中的内容',collection:{url:'https://space.bilibili.com/946974/channel/collectiondetail?sid=42',title:'机器学习合集',thumbnail:'',episodes:[{url:'https://www.bilibili.com/video/BV1ep1',title:'第1集',thumbnail:''}]}};
 const events={},db={},listeners=[],windows=[],api={commands:{onCommand:{addListener:fn=>events.command=fn}},contextMenus:{onClicked:{addListener:fn=>events.menu=fn}},windows:{create:async options=>windows.push(options)},alarms:{create(){},onAlarm:{addListener(){}}},runtime:{id:'test-extension',getURL:name=>'chrome-extension://test-extension/'+name,onMessage:{addListener:fn=>listeners.push(fn)},onInstalled:{addListener(){}},onStartup:{addListener(){}}},action:{onClicked:{addListener:fn=>events.click=fn},setBadgeBackgroundColor:async()=>{},setBadgeText:async()=>{},setTitle:async()=>{}},tabs:{query:async query=>query.active?[{id:1}]:[]},storage:{local:{get:async key=>structuredClone({[key]:db[key]}),set:async values=>Object.assign(db,structuredClone(values))}},scripting:{executeScript:async options=>options.args?[]:[{result:capturedResult}]}};
- const ctx={URL,chrome:api,importScripts(){},SG,console,crypto:require('node:crypto').webcrypto,pushCloud:async()=>({signedIn:false})};vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../collector/background.js'),'utf8'),ctx);
+ const ctx={URL,chrome:api,importScripts(){},SG,console,crypto:require('node:crypto').webcrypto,pushCloud:async()=>({signedIn:false})};vm.createContext(ctx);vm.runInContext(fs.readFileSync(path.join(__dirname,'../collector/gallery.js'),'utf8'),ctx);vm.runInContext(fs.readFileSync(path.join(__dirname,'../collector/background.js'),'utf8'),ctx);
  const sender={id:'test-extension',tab:{url:'https://wuhy80.github.io/shiguang/'}};
  const send=(data,from)=>new Promise(resolve=>{let handled=false;for(const listener of listeners)if(listener(data,from,resolve)===true)handled=true;if(!handled)resolve(undefined);});
  const message=data=>send(data,sender);
@@ -120,4 +120,30 @@ test('unchecking the collection toggle keeps the single video entry',async()=>{
  assert.equal((await w.editor({type:'SHIGUANG_CAPTURE_SAVE',id,tags:'',reason:'',asCollection:false})).ok,true);
  const items=(await w.message({type:'SHIGUANG_PENDING'})).items;
  assert.equal(items[0].url,'https://www.bilibili.com/video/BV123');assert.equal(items[0].episodes,undefined);
+});
+
+test('gallery uploads to the configured repo and derives the Pages URL',async()=>{
+ const db={},requests=[];
+ const api={storage:{local:{get:async key=>structuredClone({[key]:db[key]}),set:async values=>Object.assign(db,structuredClone(values))}}};
+ const ctx={chrome:api,fetch:async(url,options)=>{requests.push({url,options});return {ok:true,status:200,json:async()=>({})};},btoa:value=>Buffer.from(value,'binary').toString('base64')};
+ vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../collector/gallery.js'),'utf8'),ctx);
+ const blob={arrayBuffer:async()=>new Uint8Array([255,216,255]).buffer};
+ await ctx.chrome.storage.local.set({[ctx.ShiguangGallery.STORE_KEY]:{repo:'wuhy80/algorithm',dir:'shiguang-covers',token:'tok'}});
+ const config=await ctx.ShiguangGallery.activeConfig();
+ assert.equal(config.repo,'wuhy80/algorithm');
+ const url=await ctx.ShiguangGallery.upload(blob,config);
+ assert.match(url,/https:\/\/wuhy80\.github\.io\/algorithm\/shiguang-covers\/sg-[\w-]+\.jpg$/);
+ const request=requests.at(-1);
+ assert.equal(request.options.method,'PUT');
+ assert.match(request.url,/api\.github\.com\/repos\/wuhy80\/algorithm\/contents\/shiguang-covers\/sg-[\w-]+\.jpg$/);
+ assert.equal(request.options.headers.Authorization,'Bearer tok');
+ assert.match(request.options.body,/"content"/);
+ // 未配置 token 时不启用截图封面
+ await ctx.chrome.storage.local.set({[ctx.ShiguangGallery.STORE_KEY]:{repo:'wuhy80/algorithm',dir:'shiguang-covers',token:''}});
+ assert.equal(await ctx.ShiguangGallery.activeConfig(),null);
+ // owner.github.io 仓库的 Pages 根不带子路径
+ await ctx.chrome.storage.local.set({[ctx.ShiguangGallery.STORE_KEY]:{repo:'wuhy80/wuhy80.github.io',token:'tok'}});
+ const root=await ctx.ShiguangGallery.activeConfig();
+ const rootUrl=await ctx.ShiguangGallery.upload(blob,root);
+ assert.match(rootUrl,/https:\/\/wuhy80\.github\.io\/shiguang-covers\/sg-[\w-]+\.jpg$/);
 });

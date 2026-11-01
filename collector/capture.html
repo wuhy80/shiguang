@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>收藏到拾光</title><link rel="stylesheet" href="capture.css"></head>
 <body><main><header><span class="mark">拾</span><div><small>留住此刻的好奇</small><h1>收藏到拾光</h1></div><button id="cancel" aria-label="取消收藏">×</button></header>
-<section class="source"><strong id="title">正在读取网页…</strong><p id="url"></p></section>
+<section class="source"><strong id="title">正在读取网页…</strong><p id="url"></p><p id="cover" hidden></p></section>
 <label id="collection-toggle" class="collection-toggle" hidden><input type="checkbox" id="as-collection" checked><span>作为合集保存<small id="collection-name"></small></span></label>
 <form id="capture-form"><label for="tags">分类 / 标签 <span>选填</span></label><div id="selected-tags" class="selected-tags" aria-label="已选分类"></div><div class="category-picker"><div class="category-field"><input id="tags" maxlength="60" placeholder="选择已有分类，或输入新分类" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="categories"><button id="toggle-categories" type="button" aria-label="展开分类" aria-controls="categories">⌄</button></div><div id="categories" class="category-options" role="listbox" aria-label="可选分类" hidden></div></div><p class="hint">可选择多个分类；输入新名称后点击创建。留空也能收藏。</p>
 <label for="reason">为什么收藏它 <span>选填</span></label><textarea id="reason" maxlength="15000" rows="4" placeholder="想学什么？准备什么时候用到？"></textarea>

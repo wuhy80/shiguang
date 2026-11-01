@@ -5,3 +5,23 @@ async function collect(single){$('#status').textContent='正在读取当前页�
 $('#scan').onclick=()=>collect(false);$('#page').onclick=()=>collect(true);$('#all').onchange=e=>{document.querySelectorAll('[data-index]').forEach(x=>x.checked=e.target.checked)};$('#export').onclick=()=>{const selected=[...document.querySelectorAll('[data-index]:checked')].map(x=>collected[+x.dataset.index]);if(!selected.length){$('#status').textContent='请至少选择一条内容。';return}const blob=new Blob([JSON.stringify({version:1,items:selected},null,2)],{type:'application/json'});const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download='shiguang-collection-'+Date.now()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(u),3000);$('#status').textContent=`已导出 ${selected.length} 条。回到拾光导入文件即可。`};
 
 (async()=>{const select=$('#target-tab');for(const tab of await chrome.tabs.query({})){if(!/^https?:\/\//.test(tab.url||'')||tab.url.startsWith('https://wuhy80.github.io/shiguang/'))continue;const option=document.createElement('option');option.value=tab.id;option.textContent=tab.title||tab.url;select.append(option)}if(!select.options.length){$('#status').textContent='未找到已授权网页。请先在原平台点击工具栏拾光图标，再重新打开本工具。'}})().catch(()=>{$('#status').textContent='无法读取已授权页面，请关闭并重新打开工具。'});
+
+// 网页截图图库：GitHub 仓库 + Token，无封面网页自动截图上传
+const gallery=globalThis.ShiguangGallery;
+(async()=>{const config=await gallery.readConfig();$('#gallery-repo').value=config.repo||'';$('#gallery-dir').value=config.dir||'shiguang-covers';$('#gallery-token').value=config.token||'';})().catch(()=>{});
+$('#gallery-save').onclick=async()=>{const status=$('#gallery-status');const repo=$('#gallery-repo').value.trim(),dir=gallery.cleanDir($('#gallery-dir').value)||'shiguang-covers',token=$('#gallery-token').value.trim();
+ if(!/^[\w.-]+\/[\w.-]+$/.test(repo)){status.textContent='仓库名应为「用户名/仓库名」格式。';return}
+ if(!token){status.textContent='请填写 Token，否则无法上传截图。';return}
+ await chrome.storage.local.set({[gallery.STORE_KEY]:{repo,dir,token}});
+ status.textContent='已保存。收藏没有封面的网页时会自动截图上传（Pages 部署约需 1 分钟）。'};
+$('#gallery-test').onclick=async()=>{const status=$('#gallery-status');status.textContent='正在测试上传…';
+ try{
+  const config=await gallery.activeConfig();
+  if(!config)throw Error('请先填写仓库和 Token，点击保存后再测试');
+  const canvas=new OffscreenCanvas(320,200),ctx=canvas.getContext('2d');
+  const grad=ctx.createLinearGradient(0,0,320,200);grad.addColorStop(0,'#354936');grad.addColorStop(1,'#73d2d8');
+  ctx.fillStyle=grad;ctx.fillRect(0,0,320,200);
+  ctx.fillStyle='#fff';ctx.font='28px sans-serif';ctx.fillText('拾光封面测试',64,112);
+  const url=await gallery.upload(await canvas.convertToBlob({type:'image/jpeg',quality:0.7}),config);
+  status.textContent='上传成功：'+url+'（约 1 分钟后 Pages 部署完成，可在浏览器打开验证）';
+ }catch(error){status.textContent='测试失败：'+error.message}};

@@ -1,5 +1,5 @@
 'use strict';
-importScripts('core.js','cloud-config.js','auth-input.js','supabase.js','cloud-worker.js');
+importScripts('core.js','cloud-config.js','auth-input.js','supabase.js','cloud-worker.js','gallery.js');
 const SITE='https://wuhy80.github.io/shiguang/';
 const QUEUE='quickCaptureQueue';
 let serial=Promise.resolve();
@@ -85,12 +85,28 @@ async function openCapture(tab,info={}){
   const result=info.raw||{url:captured.url,title:captured.title,thumbnail:captured.thumbnail||'',selection:captured.selection||'',createdAt:captured.createdAt||new Date().toISOString()};
   if(info.linkUrl){result.url=info.linkUrl;result.title=info.selectionText||info.linkUrl;result.thumbnail='';}
   if(!SG.safeUrl(result.url))throw Error('请在普通网页上收藏');
+  // 封面兜底：页面没有 og:image 时截取当前屏幕，上传到 GitHub Pages 图库。
+  // 截图必须发生在任何页面提示注入之前；失败时静默降级为无封面。
+  let coverSource='';
+  if(/^\//.test(result.thumbnail))result.thumbnail='https:'+result.thumbnail;
+  result.thumbnail=SG.safeImage(result.thumbnail)||'';
+  if(!result.thumbnail&&!info.linkUrl){
+   const gallery=await ShiguangGallery.activeConfig();
+   if(gallery){
+    await badge('⇧','#a26819');
+    const shot=await ShiguangGallery.captureShot(tab);
+    if(shot){
+     try{result.thumbnail=await ShiguangGallery.upload(shot,gallery);coverSource='页面截图';}
+     catch(error){await chrome.action.setTitle({title:'拾光：封面截图上传失败，'+error.message});}
+    }
+   }
+  }
   const ownership=await chrome.storage.local.get('shiguang.extension.owner');
   const id=crypto.randomUUID();
   await locked(async()=>{
    const drafts=(await chrome.storage.local.get('captureDrafts')).captureDrafts||{};
    for(const [key,draft] of Object.entries(drafts))if(Date.now()-draft.time>86400000)delete drafts[key];
-   drafts[id]={raw:result,collection,tabId:tab.id,owner:ownership['shiguang.extension.owner']||null,time:Date.now()};
+   drafts[id]={raw:result,collection,tabId:tab.id,owner:ownership['shiguang.extension.owner']||null,coverSource,time:Date.now()};
    await chrome.storage.local.set({captureDrafts:drafts});
   });
   await chrome.windows.create({url:chrome.runtime.getURL('capture.html')+'?draft='+encodeURIComponent(id),type:'popup',width:480,height:620});
@@ -137,7 +153,7 @@ chrome.runtime.onMessage.addListener((message,sender,respond)=>{
  }
  const fromCapture=sender.url?.startsWith(chrome.runtime.getURL('capture.html')+'?');
  if(fromCapture&&message.type==='SHIGUANG_CAPTURE_GET'){
-  locked(async()=>{const drafts=(await chrome.storage.local.get('captureDrafts')).captureDrafts||{};const draft=drafts[message.id];if(!draft)throw Error('收藏窗口已过期');const items=await pending();const tags=await rememberCategories(draft.owner,items.filter(x=>(x.cloudOwner||null)===draft.owner).flatMap(x=>x.tags||[]));return {title:draft.raw.title,url:draft.raw.url,selection:draft.raw.selection||'',tags,collection:draft.collection||null};}).then(respond).catch(e=>respond({error:e.message}));return true;
+  locked(async()=>{const drafts=(await chrome.storage.local.get('captureDrafts')).captureDrafts||{};const draft=drafts[message.id];if(!draft)throw Error('收藏窗口已过期');const items=await pending();const tags=await rememberCategories(draft.owner,items.filter(x=>(x.cloudOwner||null)===draft.owner).flatMap(x=>x.tags||[]));return {title:draft.raw.title,url:draft.raw.url,thumbnail:draft.raw.thumbnail||'',coverSource:draft.coverSource||'',selection:draft.raw.selection||'',tags,collection:draft.collection||null};}).then(respond).catch(e=>respond({error:e.message}));return true;
  }
  if(fromCapture&&message.type==='SHIGUANG_CAPTURE_SAVE'){
   saveDraft(message).then(result=>{respond({ok:true,duplicate:result.duplicate});return finishCapture(result.tabId,result);}).catch(e=>respond({error:e.message}));return true;
