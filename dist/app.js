@@ -74,3 +74,25 @@ window.addEventListener('shiguang-cloud-status',queueCoverFill);window.addEventL
 window.addEventListener('shiguang-preview-ready',()=>{coverAttempts.clear();queueCoverFill();});
 
 $('.brand').onclick=e=>{e.preventDefault();resetFilters();render();window.scrollTo({top:0,behavior:'smooth'})};
+
+/* YouTube 缩略图兜底：i.ytimg.com 国内不可达，加载失败自动切换代理 */
+(function(){
+  if (window.__sgYtFix) return; window.__sgYtFix = true;
+  const proxy = (src) => 'https://wsrv.nl/?url=' + encodeURIComponent(src.replace(/^https?:\/\//, '')) + '&w=640&output=jpg';
+  document.addEventListener('error', (e) => {
+    const img = e.target;
+    if (!(img instanceof HTMLImageElement)) return;
+    const src = img.getAttribute('src') || '';
+    if (!/i\.ytimg\.com/.test(src)) return;
+    const step = Number(img.dataset.ytStep || 0);
+    if (step === 0) {
+      img.dataset.ytStep = '1';
+      img.src = proxy(src);
+    } else if (step === 1) {
+      img.dataset.ytStep = '2';
+      img.src = proxy(src).replace('wsrv.nl', 'images.weserv.nl');
+    } else {
+      img.style.visibility = 'hidden';
+    }
+  }, true);
+})();
