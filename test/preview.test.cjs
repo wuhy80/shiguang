@@ -18,7 +18,7 @@ test('Zhihu Douyin and YouTube use native title fetching even when YouTube alrea
 test('YouTube retains its derived cover if native title lookup cannot return metadata',async()=>{
  const page={window:null,SG,URL,setTimeout,clearTimeout,ShiguangPreviewNative:{postMessage(raw){const data=JSON.parse(raw);queueMicrotask(()=>this.onmessage({data:JSON.stringify({id:data.id})}));}}};page.window=page;
  vm.createContext(page);vm.runInContext(fs.readFileSync('dist/preview-client.js','utf8'),page);
- const meta=await page.ShiguangPreview.fetch(SG.normalize({url:'https://youtu.be/AbC123_-xyZ'}));assert.equal(meta.thumbnail,'https://i.ytimg.com/vi/AbC123_-xyZ/hqdefault.jpg');
+ const meta=await page.ShiguangPreview.fetch(SG.normalize({url:'https://youtu.be/AbC123_-xyZ'}));assert.equal(meta.thumbnail,'https://wsrv.nl/?url=i.ytimg.com%2Fvi%2FAbC123_-xyZ%2Fhqdefault.jpg&w=480&output=jpg');
 });
 
 test('Xiaohongshu cn short links use phone metadata while signed out and repair only missing metadata',async()=>{
@@ -48,7 +48,7 @@ test('thumbnail survives normalize, backup and cloud merge; unsafe images reject
  assert.equal(SG.normalize(input).thumbnail,input.thumbnail);
  assert.equal(SG.parseFile(JSON.stringify([input]),'backup.json')[0].thumbnail,input.thumbnail);
  for(const url of ['javascript:alert(1)','http://example.com/img.jpg','https://127.0.0.1/a','https://10.1.2.3/a','https://user:pass@example.com/a'])assert.equal(SG.safeImage(url),'');
- assert.equal(SG.thumbnailFor({url:'https://youtu.be/fNk_zzaMoSs'}),'https://i.ytimg.com/vi/fNk_zzaMoSs/hqdefault.jpg');
+ assert.equal(SG.thumbnailFor({url:'https://youtu.be/fNk_zzaMoSs'}),'https://wsrv.nl/?url=i.ytimg.com%2Fvi%2FfNk_zzaMoSs%2Fhqdefault.jpg&w=480&output=jpg');
  assert.equal(SG.thumbnailFor({url:'https://fake-youtube.com/watch?v=fNk_zzaMoSs'}),'');
 });
 test('metadata parser accepts varied OG attribute order and rejects outbound private hosts and redirect escapes',async()=>{
@@ -80,9 +80,9 @@ test('YouTube title-only native response and cloud failure retain the original v
  const page={window:null,SG,URL,setTimeout,clearTimeout,ShiguangPreviewNative:{postMessage(raw){const data=JSON.parse(raw);queueMicrotask(()=>this.onmessage({data:JSON.stringify({id:data.id,title:'Video title'})}));}}};page.window=page;
  vm.createContext(page);vm.runInContext(fs.readFileSync('dist/preview-client.js','utf8'),page);
  const item=SG.normalize({url:'https://www.youtube.com/shorts/AbC123_-xyZ'});
- let meta=await page.ShiguangPreview.fetch(item);assert.equal(meta.title,'Video title');assert.equal(meta.thumbnail,'https://i.ytimg.com/vi/AbC123_-xyZ/hqdefault.jpg');
+ let meta=await page.ShiguangPreview.fetch(item);assert.equal(meta.title,'Video title');assert.equal(meta.thumbnail,'https://wsrv.nl/?url=i.ytimg.com%2Fvi%2FAbC123_-xyZ%2Fhqdefault.jpg&w=480&output=jpg');
  delete page.ShiguangPreviewNative;page.ShiguangCloud={ready:Promise.resolve(),client:{auth:{getSession:async()=>{throw Error('offline')}}}};
- meta=await page.ShiguangPreview.fetch(item);assert.equal(meta.thumbnail,'https://i.ytimg.com/vi/AbC123_-xyZ/hqdefault.jpg');
+ meta=await page.ShiguangPreview.fetch(item);assert.equal(meta.thumbnail,'https://wsrv.nl/?url=i.ytimg.com%2Fvi%2FAbC123_-xyZ%2Fhqdefault.jpg&w=480&output=jpg');
 });
 
 test('mobile YouTube save persists its cover before lookup and preserves a meaningful shared title',async()=>{
@@ -91,7 +91,7 @@ test('mobile YouTube save persists its cover before lookup and preserves a meani
  vm.createContext(page);vm.runInContext(fs.readFileSync('dist/share-form.js','utf8'),page);
  page.shiguangReceiveShare({url:'https://youtu.be/AbC123_-xyZ',title:'Actual shared title'});
  await page.ShiguangCaptureTransport.sendMessage({type:'SHIGUANG_CAPTURE_GET'});await page.ShiguangCaptureTransport.sendMessage({type:'SHIGUANG_CAPTURE_SAVE',tags:'Videos'});
- const saved=JSON.parse(raw)[0];assert.equal(saved.title,'Actual shared title');assert.equal(saved.thumbnail,'https://i.ytimg.com/vi/AbC123_-xyZ/hqdefault.jpg');
+ const saved=JSON.parse(raw)[0];assert.equal(saved.title,'Actual shared title');assert.equal(saved.thumbnail,'https://wsrv.nl/?url=i.ytimg.com%2Fvi%2FAbC123_-xyZ%2Fhqdefault.jpg&w=480&output=jpg');
 });
 
 
@@ -199,12 +199,12 @@ test('single youtube videos resolve through oEmbed even when the page is bot-wal
  const body=bytes=>({getReader(){let done=false;return{read(){if(done)return Promise.resolve({done:true,value:null});done=true;return Promise.resolve({done:false,value:new TextEncoder().encode(bytes)});},cancel(){}}}});
  const stub=url=>{
   url=String(url);
-  if(url.includes('oembed'))return Promise.resolve({ok:true,status:200,headers:new Map(),body:body(JSON.stringify({title:'The Essence of Linear Algebra',author_name:'3Blue1Brown',thumbnail_url:'https://i.ytimg.com/vi/fNk_zzaMoSs/hqdefault.jpg'}))});
+  if(url.includes('oembed'))return Promise.resolve({ok:true,status:200,headers:new Map(),body:body(JSON.stringify({title:'The Essence of Linear Algebra',author_name:'3Blue1Brown',thumbnail_url:'https://wsrv.nl/?url=i.ytimg.com%2Fvi%2FfNk_zzaMoSs%2Fhqdefault.jpg&w=480&output=jpg'}))});
   return Promise.resolve({ok:true,status:200,headers:new Map(),body:body('<html><head><title>Sign in to confirm you are not a bot</title></head></html>')});
  };
  for(const url of ['https://www.youtube.com/watch?v=fNk_zzaMoSs&vd_source=x','https://youtu.be/fNk_zzaMoSs','https://www.youtube.com/shorts/fNk_zzaMoSs']){
   const meta=await preview(url,stub);
   assert.equal(meta.title,'The Essence of Linear Algebra');
-  assert.equal(meta.thumbnail,'https://i.ytimg.com/vi/fNk_zzaMoSs/hqdefault.jpg');
+  assert.equal(meta.thumbnail,'https://wsrv.nl/?url=i.ytimg.com%2Fvi%2FfNk_zzaMoSs%2Fhqdefault.jpg&w=480&output=jpg');
  }
 });
