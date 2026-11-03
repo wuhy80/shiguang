@@ -36,7 +36,7 @@
    // Use the same library origin and account as the main Android activity.
    await ShiguangCloud.ready;owner=localStorage.getItem("shiguang.cloud.owner");
    const entries=JSON.parse(localStorage.getItem(ShiguangCapture.KEY)||'[]');
-   return {...draft,tags:[...new Set(entries.flatMap(item=>item.tags||[]))]};
+   let saved=[];try{const key='shiguang.categories.v1.'+(owner||'guest');const value=JSON.parse(localStorage.getItem(key)||'[]');if(Array.isArray(value))saved=value.filter(x=>typeof x==='string');}catch{}return {...draft,tags:[...new Set([...saved,...entries.flatMap(item=>item.tags||[])])]};
   }
   if(message.type==='SHIGUANG_CAPTURE_SAVE'){
    if(saving)throw Error('正在保存，请稍候');if(localStorage.getItem('shiguang.cloud.owner')!==owner)throw Error('账号已切换，请重新分享');saving=true;
