@@ -1,5 +1,7 @@
 /* A quieter reading desk: shared by the website and the Android library. */
 :root{--bg:#f4f3ed;--paper:#fffefa;--ink:#25382f;--muted:#657568;--green:#315b43;--line:#dde4d9;--soft:#eaf0e6}
+.stat strong{font-family:"PingFang SC","Microsoft YaHei UI","Microsoft YaHei",sans-serif;font-weight:600;font-variant-numeric:tabular-nums}
+.library-controls{display:flex;align-items:center;gap:10px}.batch-toggle,.batch-bar button{border:1px solid #ccdccc;background:#fffefa;color:#315b43;border-radius:8px;padding:9px 12px;font-size:13px;min-height:40px}.batch-toggle[aria-pressed=true]{background:#e2eee0}.batch-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px;margin:0 0 14px;background:#eaf1e7;border:1px solid #d9e7d6;border-radius:10px}.batch-bar[hidden],.batch-toggle[hidden]{display:none}.batch-bar span{font-size:13px;color:#405c47;margin-right:auto}.batch-bar #batch-delete{background:#a74738;border-color:#a74738;color:white}.batch-bar button:disabled{opacity:.45;cursor:default}.card{position:relative}.batch-check{display:flex;align-items:center;gap:8px;min-height:44px;padding:8px 14px;background:#f2f6ee;border-bottom:1px solid #dce8d9;color:#315b43;font-size:13px;cursor:pointer}.batch-check input{width:19px;height:19px;accent-color:#315b43}.card.is-selected{outline:2px solid #719c76;outline-offset:-2px}.cards.list.selecting .card{display:grid;grid-template-columns:170px minmax(0,1fr)}.cards.list .batch-check{grid-column:1/-1}.cards.list.selecting .card .cover{width:170px;height:100%}
 body{font-family:"PingFang SC","Microsoft YaHei UI","Microsoft YaHei",sans-serif;line-height:1.5}
 .sidebar{background:#e9eee5;border-color:#d9e1d6;padding-top:30px}
 .brand-icon{background:#315b43;box-shadow:0 5px 14px #315b4320}
@@ -23,6 +25,7 @@ main{padding-top:38px}
 .cover{height:168px}.card-body{padding:18px}.source-line{font-size:11px;color:#66796a}.source-line .platform-badge{width:22px;height:22px;font-size:10px}.card-title{font-size:16px;line-height:1.55;color:#263b30}.card-desc{font-size:12px;color:#718071}.tag{font-size:11px;background:#edf3e9;color:#567259;border-radius:5px}.card-bottom{font-size:11px;color:#7b897a}.card-bottom button{font-size:12px;color:#526f58;min-height:32px}.card-bottom [data-edit]{border-color:#ceddcc;border-radius:6px}
 dialog{border-radius:18px;box-shadow:0 24px 70px #1e382a2a}.field{font-size:14px}.field input,.field textarea,.field select{font-size:14px;border-radius:8px}.field input:focus,.field textarea:focus,.field select:focus{outline:2px solid #84ad8c;outline-offset:1px}
 @media(max-width:700px){
+ .library-controls{gap:6px}.batch-toggle{padding:7px 10px;min-height:40px;font-size:12px}.batch-bar{gap:7px;padding:9px}.batch-bar button{min-height:44px;font-size:12px;padding:8px}.batch-bar span{min-width:70px}.cards.list.selecting .card{grid-template-columns:76px minmax(0,1fr)}.cards.list.selecting .card .cover{width:76px;height:90px}.cards.list .batch-check{margin:-12px -12px 0;border-radius:11px 11px 0 0}
  .sidebar{padding:12px 16px;background:#e9eee5}.brand{font-size:23px}.sidebar .wide{min-height:42px;padding:0 17px}
  .workspace>header{background:#f4f3ed;padding:0 12px}.header-actions{gap:2px}.header-actions .quiet{font-size:12px}.avatar{background:#dce8d9;color:#315b43}
  main{padding:14px 16px 0}.stats{margin-bottom:12px;padding:12px 0}.stat{padding:0 10px}.stat-label{font-size:10px;color:#657568}.stat strong{font-size:25px}
@@ -31,4 +34,4 @@ dialog{border-radius:18px;box-shadow:0 24px 70px #1e382a2a}.field{font-size:14px
  .tag-filters button{font-size:12px}.cards{gap:12px}.card{border-radius:13px}.cover{height:150px}.card-body{padding:15px}.card-title{font-size:15px;line-height:1.55}.card-desc{font-size:12px}.card-bottom button{min-height:40px}.cards.list .cover{height:90px}
  dialog{max-height:calc(100dvh - 24px);padding:20px 18px}.field input,.field textarea,.field select{font-size:16px}
 }
-@media(max-width:360px){.header-actions .quiet{padding:6px;font-size:11px}.stat{padding:0 7px}.stat-label{font-size:9px}}
+@media(max-width:360px){.header-actions .quiet{padding:6px;font-size:11px}.stat{padding:0 7px}.stat-label{font-size:9px}.cards.list.selecting .card{grid-template-columns:60px minmax(0,1fr)}.cards.list.selecting .card .cover{width:60px;height:80px}.cards.list .batch-check{margin:-10px -10px 0}}

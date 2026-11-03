@@ -8,7 +8,7 @@ async function main(){
  const headers={Authorization:'Bearer '+token,Accept:'application/vnd.github+json','User-Agent':'shiguang-release','X-GitHub-Api-Version':'2022-11-28'};
  const existing=await fetch(base+'/releases/tags/'+tag,{headers});
  if(existing.status!==404)throw Error('This release tag already exists or cannot be checked. Bump versionName before publishing.');
- const notes="优化网页与 Android 知识库界面和收藏分类窗口，改善桌面阅读层次、手机卡片、搜索和触控体验。保留原有收藏、分类与同步逻辑。覆盖安装保留数据；尚待手机实测。";
+ const notes="调整统计数字字体，并为网页及 Android 知识库加入批量选择、筛选结果全选和确认删除。删除通过现有机制同步；覆盖安装保留数据，尚待手机实测。";
  const response=await fetch(base+'/releases',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({tag_name:tag,target_commitish:process.env.GITHUB_SHA,name:'拾光 '+version+' · 1.6.27 基础修复测试包',body:notes,draft:false,prerelease:true})});
  if(!response.ok)throw Error('Release creation failed: '+response.status);
  const release=await response.json();
