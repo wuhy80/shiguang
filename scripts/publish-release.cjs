@@ -8,7 +8,7 @@ async function main(){
  const headers={Authorization:'Bearer '+token,Accept:'application/vnd.github+json','User-Agent':'shiguang-release','X-GitHub-Api-Version':'2022-11-28'};
  const existing=await fetch(base+'/releases/tags/'+tag,{headers});
  if(existing.status!==404)throw Error('This release tag already exists or cannot be checked. Bump versionName before publishing.');
- const notes="新增分类管理：创建、重命名、删除和上移下移；重命名或删除只更新收藏的分类标签，不删除收藏。空分类和排序保存在当前设备。覆盖安装保留数据，尚待手机实测。";
+ const notes="减少网页及 Android 知识库刷新时的卡片闪动：数据没有变化时不重复重绘，取消卡片反复淡入动画。内容变化仍正常更新。覆盖安装保留数据。";
  const response=await fetch(base+'/releases',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({tag_name:tag,target_commitish:process.env.GITHUB_SHA,name:'拾光 '+version+' · 1.6.27 基础修复测试包',body:notes,draft:false,prerelease:true})});
  if(!response.ok)throw Error('Release creation failed: '+response.status);
  const release=await response.json();

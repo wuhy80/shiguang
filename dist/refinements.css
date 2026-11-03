@@ -37,3 +37,6 @@ dialog{border-radius:18px;box-shadow:0 24px 70px #1e382a2a}.field{font-size:14px
  dialog{max-height:calc(100dvh - 24px);padding:20px 18px}.field input,.field textarea,.field select{font-size:16px}
 }
 @media(max-width:360px){.header-actions .quiet{padding:6px;font-size:11px}.stat{padding:0 7px}.stat-label{font-size:9px}.cards.list.selecting .card{grid-template-columns:60px minmax(0,1fr)}.cards.list.selecting .card .cover{width:60px;height:80px}.cards.list .batch-check{margin:-10px -10px 0}}
+
+/* Refreshes and filtering should not replay a fade-in for every card. */
+.card{animation:none}
