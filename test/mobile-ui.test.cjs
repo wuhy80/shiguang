@@ -36,9 +36,9 @@ test('native capture setup sends only the action explicitly tapped; website hide
  let html='',sent=[];const controls={};
  const actions=['enableAutoCapture','disableAutoCapture','autoCaptureDiagnostics','calibrateAutoCapture','xhsMetadataLogin','xhsMetadataDisable'];
  const buttons=actions.map(action=>({dataset:{nativeAction:action}}));
- const context={items:[],storageFailed:false,window:{ShiguangNative:{postMessage:raw=>sent.push(JSON.parse(raw))}},document:{documentElement:{dataset:{appVersion:'1.6.37'}},querySelectorAll:()=>buttons},esc:x=>x,openModal:(title,body)=>html=body,$:id=>controls[id]??={},backup(){},importDialog(){},aiStatusText:()=>'AI 状态',bulk:{active:false,stop:false}};
+ const context={items:[],storageFailed:false,window:{ShiguangNative:{postMessage:raw=>sent.push(JSON.parse(raw))}},document:{documentElement:{dataset:{appVersion:'1.6.42'}},querySelectorAll:()=>buttons},esc:x=>x,openModal:(title,body)=>html=body,$:id=>controls[id]??={},backup(){},importDialog(){},aiStatusText:()=>'AI 状态',bulk:{active:false,stop:false}};
  vm.runInNewContext(source+';settings()',context);
- assert.match(html,/Android 1.6.37/);assert.match(html,/查看检测记录/);assert.doesNotMatch(html,/悬浮收藏球|下拉快捷按钮|桌面快捷收藏|从复制的链接收藏/);assert.equal(sent.length,0);
+ assert.match(html,/Android 1.6.42/);assert.match(html,/查看检测记录/);assert.doesNotMatch(html,/悬浮收藏球|下拉快捷按钮|桌面快捷收藏|从复制的链接收藏/);assert.equal(sent.length,0);
  buttons.forEach(button=>button.onclick());
  assert.deepEqual(sent,actions.map(action=>({action})));
  context.window={};vm.runInNewContext('settings()',context);assert.ok(!html.includes('data-native-action'));
