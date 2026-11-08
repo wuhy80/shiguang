@@ -3,7 +3,7 @@ const SG=require('../dist/core.js'),model=require('../dist/sync-model.js');
 async function boot(values,uid){
  const data={...values};const storage={getItem:k=>data[k]??null,setItem:(k,v)=>{data[k]=v},removeItem:k=>{delete data[k]}};
  const session={user:{id:uid,email:'test@example.invalid'}};
- const context={SG,ShiguangCloudConfig:{url:'https://example.supabase.co',key:'public'},ShiguangSyncModel:model,ShiguangSupabase:{createClient:()=>({auth:{getSession:async()=>({data:{session}}),onAuthStateChange(){}}})},localStorage:storage,navigator:{},location:{pathname:'/quick-share.html'},document:{},setTimeout(){},clearTimeout(){},Event:function(){},CustomEvent:function(){}};
+ const context={SG,ShiguangCloudConfig:{url:'https://example.supabase.co',key:'public'},ShiguangSyncModel:model,ShiguangSupabase:{createClient:()=>({auth:{getSession:async()=>({data:{session}}),onAuthStateChange(){}}})},localStorage:storage,navigator:{},document:{},setTimeout(){},clearTimeout(){},setInterval(){},clearInterval(){},Event:function(){},CustomEvent:function(){}};
  context.window=context;context.dispatchEvent=()=>{};context.addEventListener=()=>{};
  vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../dist/cloud-client.js'),'utf8'),context);await context.ShiguangCloud.ready;return data;
 }

@@ -1,7 +1,7 @@
 // 语义向量服务：把收藏文本转为 embedding-3 向量，只做向量、不落库。
 // 鉴权、限流与 CORS 与 link-preview 相同；缺 GLM_API_KEY 时返回 501，客户端按未配置降级。
 const limits=new Map();
-const ORIGINS=['https://wuhy80.github.io','https://appassets.androidplatform.net','http://127.0.0.1:4178','http://127.0.0.1:4179'];
+const ORIGINS=['https://wuhy80.github.io','http://127.0.0.1:4178','http://127.0.0.1:4179'];
 const MAX_BATCH=16,MAX_TEXT=1000;
 Deno.serve(async req=>{
  const origin=req.headers.get('origin')||'';

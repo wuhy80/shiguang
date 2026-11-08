@@ -3,7 +3,7 @@ const cache=new Map(),limits=new Map();
 Deno.serve(async req=>{
  const origin=req.headers.get('origin')||'';
  const cors={'Access-Control-Allow-Origin':origin,'Vary':'Origin','Access-Control-Allow-Headers':'authorization,apikey,content-type,x-client-info','Access-Control-Allow-Methods':'POST,OPTIONS'};
- if(origin&&!['https://wuhy80.github.io','https://appassets.androidplatform.net','http://127.0.0.1:4178','http://127.0.0.1:4179'].includes(origin))return new Response('Forbidden',{status:403});
+ if(origin&&!['https://wuhy80.github.io','http://127.0.0.1:4178','http://127.0.0.1:4179'].includes(origin))return new Response('Forbidden',{status:403});
  if(req.method==='OPTIONS')return new Response('ok',{headers:cors});
  const json=(data,status=200)=>Response.json(data,{status,headers:{...cors,'Cache-Control':'no-store'}});
  if(req.method!=='POST')return json({error:'method'},405);

@@ -76,5 +76,5 @@
  root.addEventListener('online',schedule);root.addEventListener('shiguang-local-change',schedule);
  root.addEventListener('storage',event=>{if(event.key===KEY)schedule();});
  root.addEventListener('focus',schedule);
- if(!location.pathname.endsWith('quick-share.html')){api.ready.then(schedule);setInterval(()=>{if(document.visibilityState==='visible')schedule();},30000);}
+ api.ready.then(schedule);setInterval(()=>{if(document.visibilityState==='visible')schedule();},30000);
 })(window);

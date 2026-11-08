@@ -1,7 +1,7 @@
 // AI 摘要服务：enrich 模式生成一句话摘要与建议标签，digest 模式聚合近 7 天收藏为导读。
 // 鉴权、限流与 CORS 与 link-preview 相同；缺 GLM_API_KEY 时返回 501，客户端按未配置降级。
 const limits=new Map(),cache=new Map();
-const ORIGINS=['https://wuhy80.github.io','https://appassets.androidplatform.net','http://127.0.0.1:4178','http://127.0.0.1:4179'];
+const ORIGINS=['https://wuhy80.github.io','http://127.0.0.1:4178','http://127.0.0.1:4179'];
 const DOMAINS=['bilibili.com','b23.tv','youtube.com','youtu.be','linux.do','zhihu.com','zhihu.link','xiaohongshu.com','xhslink.com','douyin.com','iesdouyin.com','github.com'];
 function allowed(url){try{const u=new URL(url);return u.protocol==='https:'&&!u.username&&!u.password&&(!u.port||u.port==='443')&&DOMAINS.some(d=>u.hostname===d||u.hostname.endsWith('.'+d));}catch{return false;}}
 async function limitedText(response,max=150000){const reader=response.body?.getReader();if(!reader)return '';const decoder=new TextDecoder();let out='';for(;;){const {done,value}=await reader.read();if(done)break;out+=decoder.decode(value,{stream:true});if(out.length>max){try{await reader.cancel();}catch{}break;}}return out+decoder.decode();}

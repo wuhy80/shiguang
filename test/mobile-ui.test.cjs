@@ -1,19 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 
-test('every calibratable platform and supported variant is included in the accessibility event filter',()=>{
- const root='android/app/src/main/',java=root+'java/io/github/jiangxixu/shiguang/';
- const rules=fs.readFileSync(java+'FavoriteRules.java','utf8');
- const xml=fs.readFileSync(root+'res/xml/favorite_accessibility.xml','utf8');
- const allowed=new Set(xml.match(/android:packageNames="([^"]+)"/)[1].split(','));
- const primary=[...rules.match(/PACKAGES=\{([^}]+)\}/)[1].matchAll(/"([^"]+)"/g)].map(x=>x[1]);
- const variants=[...rules.matchAll(/pkg\.equals\("([^"]+)"\)/g)].map(x=>x[1]);
- assert.equal(primary.length,7);
- assert.deepEqual(allowed,new Set([...primary,...variants]));
- const activity=fs.readFileSync(java+'MainActivity.java','utf8');
- assert.match(activity,/setItems\(FavoriteRules.PLATFORMS/);
- assert.match(activity,/String pkg=FavoriteRules.PACKAGES\[index\]/);
-});
-
 test('login opens immediately even when initial session lookup is still pending; slow redirects show feedback',async()=>{
  const elements={},timers=[];let opened='';
  const element=id=>elements[id]??=( {value:'test@example.com',disabled:false,textContent:'',reportValidity:()=>true} );
@@ -29,19 +15,6 @@ test('brand resolves to a real packaged page; removed floating collector is not 
  const html=fs.readFileSync('dist/index.html','utf8'),href=html.match(/class="brand" href="([^"]+)"/)[1];
  assert.equal(new URL(href,'https://appassets.androidplatform.net/assets/index.html').pathname,'/assets/index.html');
  assert.ok(!html.includes('id="quick-add"'));assert.ok(!fs.readFileSync('dist/app.js','utf8').includes("$('#quick-add').onclick"));
-});
-
-test('native capture setup sends only the action explicitly tapped; website hides Android setup',()=>{
- const source=fs.readFileSync('dist/app.js','utf8').split('\n').find(line=>line.startsWith('function settings()'));
- let html='',sent=[];const controls={};
- const actions=['enableAutoCapture','disableAutoCapture','autoCaptureDiagnostics','calibrateAutoCapture','xhsMetadataLogin','xhsMetadataDisable'];
- const buttons=actions.map(action=>({dataset:{nativeAction:action}}));
- const context={items:[],storageFailed:false,window:{ShiguangNative:{postMessage:raw=>sent.push(JSON.parse(raw))}},document:{documentElement:{dataset:{appVersion:'1.6.42'}},querySelectorAll:()=>buttons},esc:x=>x,openModal:(title,body)=>html=body,$:id=>controls[id]??={},backup(){},importDialog(){},aiStatusText:()=>'AI 状态',bulk:{active:false,stop:false}};
- vm.runInNewContext(source+';settings()',context);
- assert.match(html,/Android 1.6.42/);assert.match(html,/查看检测记录/);assert.doesNotMatch(html,/悬浮收藏球|下拉快捷按钮|桌面快捷收藏|从复制的链接收藏/);assert.equal(sent.length,0);
- buttons.forEach(button=>button.onclick());
- assert.deepEqual(sent,actions.map(action=>({action})));
- context.window={};vm.runInNewContext('settings()',context);assert.ok(!html.includes('data-native-action'));
 });
 
 test('brand returns to library without navigating to an Android asset directory',()=>{
