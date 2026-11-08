@@ -2,7 +2,7 @@
 
 把散落在不同平台的收藏放到一起，按标题、标签和笔记找回它们。
 
-**[打开网站](https://jiangxixu.github.io/shiguang/) · [下载 Android APK](https://github.com/jiangxixu/shiguang/releases/latest/download/shiguang-android.apk) · [版本发布](https://github.com/jiangxixu/shiguang/releases)**
+**[打开网站](https://wuhy80.github.io/shiguang/) · [下载 Android APK](https://github.com/wuhy80/shiguang/releases/latest/download/shiguang-android.apk) · [版本发布](https://github.com/wuhy80/shiguang/releases)**
 
 ## 网页版与 Android App
 
@@ -62,7 +62,7 @@ Android：更新到 1.3.2，在原 App 中选择“分享 → 更多 → 拾光�
 3. 检查勾选链接，导出 JSON。
 4. 回到拾光导入文件，重复链接会跳过，并保留已有笔记和状态。
 
-扩展使用 activeTab、scripting、storage、alarms、contextMenus 权限，仅对 jiangxixu.github.io 与拾光 Supabase 项目请求常驻访问；快捷键脚本在普通 HTTP / HTTPS 网页监听空格 + S，不读取密码或输入框内容；知识库归档脚本只匹配 /shiguang/ 路径。扩展只在你主动触发收藏时读取来源网页标题、链接和选中文字，收藏先保存到扩展存储，网站打开后自动归档；批量模式读取页面 DOM 中已加载的链接，不读取密码或 Cookie。动态 / 虚拟列表以及网页结构变化可能导致漏采，可分批采集或手动补充。未使用你的真实账号验证所有平台。浏览器采集扩展用于桌面 Chrome / Edge，Android App 可接收分享链接与导入备份文件。
+扩展使用 activeTab、scripting、storage、alarms、contextMenus 权限，仅对 wuhy80.github.io 与拾光 Supabase 项目请求常驻访问；快捷键脚本在普通 HTTP / HTTPS 网页监听空格 + S，不读取密码或输入框内容；知识库归档脚本只匹配 /shiguang/ 路径。扩展只在你主动触发收藏时读取来源网页标题、链接和选中文字，收藏先保存到扩展存储，网站打开后自动归档；批量模式读取页面 DOM 中已加载的链接，不读取密码或 Cookie。动态 / 虚拟列表以及网页结构变化可能导致漏采，可分批采集或手动补充。未使用你的真实账号验证所有平台。浏览器采集扩展用于桌面 Chrome / Edge，Android App 可接收分享链接与导入备份文件。
 
 ## 来源与兼容性
 
