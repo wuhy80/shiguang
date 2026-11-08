@@ -56,3 +56,17 @@
 
 /* 有每集数据的合集条目：点卡片弹详情而非跳原平台 */
 a.cover[data-detail],a.card-title[data-detail]{cursor:pointer}
+
+/* AI 摘要、✦ 建议标签、语义搜索与本周回顾 */
+#semantic-toggle{border:1px solid var(--line);border-radius:4px;padding:4px 8px;font-size:10px;color:#78816f;background:#f0f2e9;white-space:nowrap;flex-shrink:0}
+#semantic-toggle.active{background:#e6eadd;border-color:#bdcbb2;color:var(--green);font-weight:600}
+#semantic-toggle.unavailable{opacity:.45}
+#weekly-review{font-size:11px;color:#5f6a5c;background:#e9ecdf;padding:3px 11px;border-radius:3px;margin-right:3px;white-space:nowrap}
+#weekly-review:hover{filter:none;color:var(--green)}
+.ai-summary{font-size:10px;line-height:1.7;color:#7d8a76;margin:-6px 0 10px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tag.ai{background:none;border:1px dashed #b9c6ac;color:var(--green)}
+.ai-block{margin:14px 0;padding:12px 14px;border:1px dashed #cdd8c2;border-radius:8px;background:#f7f9f1}
+.ai-line{font-size:12px;line-height:1.8;color:#5c675a;margin:0 0 6px}
+.digest-h{font-size:12px;margin:16px 0 4px;color:#6b7663}
+.digest-item{font-size:12px;line-height:1.9;margin:7px 0;color:var(--ink)}
+@media(max-width:700px){#semantic-toggle{min-height:36px;font-size:11px;padding:6px 9px}#weekly-review{min-height:36px;font-size:12px}.ai-summary{font-size:11px;margin:-4px 0 8px;color:#7d8a76}.ai-block{padding:11px 12px}.digest-item,.ai-line{font-size:13px}}

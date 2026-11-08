@@ -3,6 +3,7 @@ node_modules/
 .env.*
 !.env.example
 .vercel/
+.zcode/
 .private/
 *.p12
 *.jks
