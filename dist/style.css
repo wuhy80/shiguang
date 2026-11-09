@@ -22,7 +22,7 @@
  #cloud-account{margin-right:auto;min-width:0;max-width:none;flex:1;text-align:left;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
  #sources-top{flex-shrink:0}.avatar{width:36px;height:36px;flex-shrink:0;font-size:12px}
  main{padding:16px 16px 0;min-width:0}.intro{display:block;margin-bottom:12px}.intro h1,.intro .outline{display:none}
- .intro .stats{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);border-radius:12px;background:var(--paper);padding:13px 0;margin:0}.stat{display:block;padding:0 10px;min-width:0;border-left:0}.stat-label{display:flex;justify-content:space-between;font-size:10px;line-height:1.5;white-space:nowrap}.stat strong{display:inline-block;font-size:25px;margin-top:4px}.stat small{display:none}
+.stat{display:block;padding:0 10px;min-width:0;border-left:0}.stat-label{display:flex;justify-content:space-between;font-size:10px;line-height:1.5;white-space:nowrap}.stat strong{display:inline-block;font-size:25px;margin-top:4px}.stat small{display:none}
  .library-heading{flex-wrap:wrap}.view-buttons{flex-shrink:0}#random-read{min-height:36px;font-size:12px;padding:3px 10px}
  .library-heading{margin-bottom:12px}.library-heading>div:first-child{gap:8px;min-width:0}.library h2{font-size:20px;letter-spacing:0}.library-heading span{font-size:11px}.view-buttons button{min-width:36px;min-height:36px;padding:3px 7px}
  .toolbar{display:grid;grid-template-columns:minmax(0,1fr) 68px;gap:8px}.search-wrap{padding:0 12px;gap:8px;min-width:0;min-height:46px;border-radius:9px}.search-wrap input{font-size:14px;padding:12px 0}.search-wrap kbd{display:none}
