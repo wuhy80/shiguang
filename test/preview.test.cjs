@@ -44,6 +44,28 @@ test('open fetching passes public https sites, fails closed on private addresses
  await assert.rejects(preview('https://rebind.example.net/',async()=>{fetched=true;return new Response('',{status:200});},async()=>['10.0.0.8']),/unsupported_url/);
  assert.equal(fetched,false);
 });
+test('legacy GBK pages decode through header or meta charset instead of mojibake',async()=>{
+ const {preview}=await import('../supabase/functions/link-preview/preview.mjs');
+ const gbkTitle=Uint8Array.from([0xB8,0xF1,0xCE,0xEF,0xD6,0xBE]); // “格物志”的 GBK 编码
+ const body=bytes=>({getReader(){let done=false;return{read(){if(done)return Promise.resolve({done:true,value:null});done=true;return Promise.resolve({done:false,value:bytes});},cancel(){}}}});
+ // 1. HTTP 头声明 gbk（标签本身是 ASCII，GBK 兼容）
+ const tagBytes=bytes=>new Uint8Array([...new TextEncoder().encode('<html><head><title>'),...bytes,...new TextEncoder().encode('</title></html>')]);
+ const byHeader=await preview('https://www.bilibili.com/gbk-page',async()=>{
+  return {ok:true,status:200,headers:new Map([['content-type','text/html; charset=gbk']]),body:body(tagBytes(gbkTitle))};
+ });
+ assert.equal(byHeader.title,'格物志');
+ // 2. 页面 meta 声明 gbk
+ const prefix=new TextEncoder().encode('<html><head><meta charset="gbk"><title>');
+ const byMeta=await preview('https://www.bilibili.com/meta-gbk',async()=>{
+  return {ok:true,status:200,headers:new Map(),body:body(new Uint8Array([...prefix,...gbkTitle,...new TextEncoder().encode('</title></html>')]))};
+ });
+ assert.equal(byMeta.title,'格物志');
+ // 3. 未声明编码按 UTF-8 不变
+ const byUtf8=await preview('https://www.bilibili.com/utf8-page',async()=>{
+  return {ok:true,status:200,headers:new Map(),body:body(new TextEncoder().encode('<html><head><title>格物志</title></head></html>'))};
+ });
+ assert.equal(byUtf8.title,'格物志');
+});
 test('Douyin share SSR data is parsed and collection modal links resolve through the cloud preview',async()=>{
  const {parseDouyin,preview}=await import('../supabase/functions/link-preview/preview.mjs');
  assert.equal(parseDouyin('<html>no data</html>'),null);

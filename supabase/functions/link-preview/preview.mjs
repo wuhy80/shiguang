@@ -72,7 +72,18 @@ async function douyinMeta(id,fetcher){
  }
  return null;
 }
-async function limitedText(response){const reader=response.body?.getReader();if(!reader)return '';const chunks=[];let total=0;try{while(true){const {value,done}=await reader.read();if(done)break;total+=value.length;if(total>1500000)break;chunks.push(value);}}finally{await reader.cancel();}const bytes=new Uint8Array(chunks.reduce((n,c)=>n+c.length,0));let offset=0;for(const c of chunks){bytes.set(c,offset);offset+=c.length;}return new TextDecoder().decode(bytes);}
+async function limitedText(response){const reader=response.body?.getReader();if(!reader)return '';const chunks=[];let total=0;try{while(true){const {value,done}=await reader.read();if(done)break;total+=value.length;if(total>1500000)break;chunks.push(value);}}finally{await reader.cancel();}const bytes=new Uint8Array(chunks.reduce((n,c)=>n+c.length,0));let offset=0;for(const c of chunks){bytes.set(c,offset);offset+=c.length;}return decodeBytes(bytes,response.headers.get('content-type'));}
+// 编码探测：HTTP 头 charset 优先，其次页面 meta 声明，都没有才按 UTF-8。GBK/GB18030 等老站点不再乱码。
+function decodeBytes(bytes,contentTypes){
+ const headerCharset=/charset\s*=\s*"?([\w-]+)"?/i.exec(contentTypes||'')?.[1];
+ const probe=new TextDecoder('latin1').decode(bytes.slice(0,2048)).toLowerCase();
+ const metaCharset=/charset\s*=\s*["']?\s*([\w-]+)/i.exec(probe)?.[1];
+ for(const label of [headerCharset,metaCharset]){
+  if(!label||/^(utf-?8|us-ascii|latin1|iso-8859-1)$/i.test(label))continue;
+  try{return new TextDecoder(label.replace(/_/g,'-')).decode(bytes);}catch{}
+ }
+ return new TextDecoder('utf-8').decode(bytes);
+}
 async function apiJSON(target,fetcher,headers={}){
  if(!allowed(target))throw Error('unsupported_redirect');
  const response=await fetcher(target,{redirect:'manual',signal:AbortSignal.timeout(7000),headers:{'User-Agent':'Mozilla/5.0','Accept':'application/json,text/xml',...headers}});

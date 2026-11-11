@@ -34,7 +34,18 @@ async function reachable(url){
   return ok;
  }catch{return false;}
 }
-async function limitedText(response,max=150000){const reader=response.body?.getReader();if(!reader)return '';const decoder=new TextDecoder();let out='';for(;;){const {done,value}=await reader.read();if(done)break;out+=decoder.decode(value,{stream:true});if(out.length>max){try{await reader.cancel();}catch{}break;}}return out+decoder.decode();}
+// 编码探测：HTTP 头 charset 优先，其次页面 meta 声明，都没有才按 UTF-8。GBK/GB18030 等老站点不再乱码。
+function decodeBytes(bytes,contentTypes){
+ const headerCharset=/charset\s*=\s*"?([\w-]+)"?/i.exec(contentTypes||'')?.[1];
+ const probe=new TextDecoder('latin1').decode(bytes.slice(0,2048)).toLowerCase();
+ const metaCharset=/charset\s*=\s*["']?\s*([\w-]+)/i.exec(probe)?.[1];
+ for(const label of [headerCharset,metaCharset]){
+  if(!label||/^(utf-?8|us-ascii|latin1|iso-8859-1)$/i.test(label))continue;
+  try{return new TextDecoder(label.replace(/_/g,'-')).decode(bytes);}catch{}
+ }
+ return new TextDecoder('utf-8').decode(bytes);
+}
+async function limitedText(response,max=150000){const reader=response.body?.getReader();if(!reader)return '';const chunks=[];let total=0;try{for(;;){const {value,done}=await reader.read();if(done)break;total+=value.length;if(total>max){try{await reader.cancel();}catch{}break;}chunks.push(value);}}catch{}const bytes=new Uint8Array(chunks.reduce((n,c)=>n+c.length,0));let offset=0;for(const c of chunks){bytes.set(c,offset);offset+=c.length;}return decodeBytes(bytes,response.headers.get('content-type'));}
 async function describe(url){ // 尽力而为抓 OG 描述给模型补充上下文，失败静默跳过
  try{
   if(!await reachable(url))return '';
