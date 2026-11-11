@@ -2,11 +2,50 @@
 const domains=['bilibili.com','b23.tv','youtube.com','youtu.be','linux.do','zhihu.com','zhihu.link','xiaohongshu.com','xhslink.com','douyin.com','iesdouyin.com','github.com'];
 const douyinMobileUA='Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
 export function allowed(value){try{const u=new URL(value);return u.protocol==='https:'&&!u.username&&!u.password&&(!u.port||u.port==='443')&&domains.some(d=>u.hostname===d||u.hostname.endsWith('.'+d));}catch{return false;}}
+// 开放抓取任意 https 站点后的 SSRF 硬化：拦截私网/保留地址（含云元数据端点），域名需解析为公网地址才放行。
+function isPrivateIp(ip){
+ if(ip.startsWith('['))ip=ip.slice(1,-1);
+ if(ip.includes(':')){const lower=ip.toLowerCase();const mapped=lower.match(/^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/);if(mapped)return isPrivateIp(mapped[1]);return lower==='::'||lower==='::1'||/^(?:fe[89ab]|f[cd])[0-9a-f]*:/.test(lower);}
+ const parts=ip.split('.');if(parts.length!==4||parts.some(p=>!/^\d{1,3}$/.test(p)||Number(p)>255))return true;
+ const [a,b]=parts.map(Number);
+ return a===0||a===10||a===127||(a===100&&b>=64&&b<=127)||(a===169&&b===254)||(a===172&&b>=16&&b<=31)||(a===192&&b===168)||(a===198&&(b===18||b===19))||a>=224;
+}
+function unreachableHost(u){
+ if(u.protocol!=='https:'||u.username||u.password||(u.port&&u.port!=='443'))return true;
+ const h=u.hostname.toLowerCase();
+ if(h==='localhost'||h.endsWith('.localhost')||h.endsWith('.local')||h.endsWith('.internal')||h.endsWith('.home.arpa'))return true;
+ return /^(\d{1,3}\.){3}\d{1,3}$/.test(h)||h.startsWith('[')?isPrivateIp(h):false;
+}
+async function dohResolve(hostname){
+ const ask=async base=>{const response=await fetch(base+encodeURIComponent(hostname)+'&type=A',{headers:{accept:'application/dns-json'},signal:AbortSignal.timeout(5000)});if(!response.ok)throw Error('doh_unavailable');return (await response.json()).Answer||[];};
+ let records=[];
+ for(const base of ['https://cloudflare-dns.com/dns-query?name=','https://dns.google/resolve?name=']){try{records=await ask(base);break;}catch{}}
+ if(!records.length)throw Error('doh_unavailable');
+ return records.filter(x=>x.type===1&&typeof x.data==='string').map(x=>x.data);
+}
+const resolvedCache=new Map();
+async function hostIsPublic(hostname,dns){
+ const now=Date.now(),cached=resolvedCache.get(hostname);
+ if(cached&&cached.until>now)return cached.ok;
+ let ok;try{const ips=await dns(hostname);ok=Array.isArray(ips)&&ips.length>0&&!ips.some(isPrivateIp);}catch{ok=false;}
+ resolvedCache.set(hostname,{ok,until:now+300000});if(resolvedCache.size>500)resolvedCache.delete(resolvedCache.keys().next().value);
+ return ok;
+}
+export async function publiclyFetchable(value,dns){
+ try{
+  const u=new URL(value);if(unreachableHost(u))return false;
+  const h=u.hostname.toLowerCase();
+  if(domains.some(d=>h===d||h.endsWith('.'+d)))return true; // 已知平台免解析，保持原有可用性
+  if(!dns)dns=dohResolve;
+  return await hostIsPublic(h,dns);
+ }catch{return false;}
+}
 export function imageUrl(value,base){if(!value)return "";try{const u=new URL(value,base);if(!['https:','http:'].includes(u.protocol)||u.username||u.password)return '';u.protocol='https:';return u.href.slice(0,2000);}catch{return '';}}
 function decode(value){return value.replace(/&amp;/gi,'&').replace(/&quot;/gi,'"').replace(/&#39;|&apos;/gi,"'").replace(/&lt;/gi,'<').replace(/&gt;/gi,'>').replace(/&#(x[\da-f]+|\d+);/gi,(_,n)=>{const code=n[0].toLowerCase()==='x'?parseInt(n.slice(1),16):Number(n);return code>0&&code<=0x10ffff?String.fromCodePoint(code):'';});}
 export function parseMeta(html,url){
  const values={};for(const tag of html.match(/<meta\b[^>]*>/gi)||[]){const attrs={};for(const m of tag.matchAll(/([\w:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/g))attrs[m[1].toLowerCase()]=decode(m[2]??m[3]??m[4]??'');const key=(attrs.property||attrs.name||'').toLowerCase();if(attrs.content&&!values[key])values[key]=attrs.content;}
- return {url,thumbnail:imageUrl(values['og:image:secure_url']||values['og:image']||values['twitter:image']||values['twitter:image:src']||'',url),title:(values['og:title']||values['twitter:title']||decode(html.match(/<title[^>]*>([^<]*)<\/title>/i)?.[1]||'')).trim().slice(0,500)};
+ const icon=()=>{for(const tag of html.match(/<link\b[^>]*>/gi)||[]){const attrs={};for(const m of tag.matchAll(/([\w:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/g))attrs[m[1].toLowerCase()]=decode(m[2]??m[3]??m[4]??'');const rel=String(attrs.rel||'').toLowerCase().split(/\s+/);if((rel.includes('apple-touch-icon')||rel.includes('icon'))&&attrs.href)return attrs.href;}return '';};
+ return {url,thumbnail:imageUrl(values['og:image:secure_url']||values['og:image']||values['twitter:image']||values['twitter:image:src']||icon(),url),title:(values['og:title']||values['twitter:title']||decode(html.match(/<title[^>]*>([^<]*)<\/title>/i)?.[1]||'')).trim().slice(0,500)};
 }
 // Douyin share pages embed the full item payload in window._ROUTER_DATA; plain meta tags stay empty.
 export function parseDouyin(html){
@@ -91,10 +130,10 @@ async function youtubePlaylist(lid,fetcher){
  if(!title&&!episodes.length)return null;
  return {title:title||(episodes[0]?episodes[0].title:''),thumbnail:imageUrl(thumbnail||episodes[0]?.thumbnail||'','https://www.youtube.com/'),episodes};
 }
-export async function preview(value,fetcher=fetch){
- if(!allowed(value))throw Error('unsupported_url');
+export async function preview(value,fetcher=fetch,dns){
+ if(!await publiclyFetchable(value,dns))throw Error('unsupported_url');
  let url=new URL(value).href;
- const request=async target=>{if(!allowed(target))throw Error('unsupported_redirect');return fetcher(target,{redirect:'manual',signal:AbortSignal.timeout(7000),headers:{'User-Agent':'Mozilla/5.0','Accept':'text/html,application/json','Referer':'https://www.bilibili.com/'}});};
+ const request=async target=>{if(!await publiclyFetchable(target,dns))throw Error('unsupported_redirect');return fetcher(target,{redirect:'manual',signal:AbortSignal.timeout(7000),headers:{'User-Agent':'Mozilla/5.0','Accept':'text/html,application/json'}});};
  for(let i=0;i<5;i++){
   const u=new URL(url),bv=u.hostname.endsWith('bilibili.com')&&u.pathname.match(/\/(BV[\da-zA-Z]+)(?:\/|$)/)?.[1];
   if(bv){try{const response=await request('https://api.bilibili.com/x/web-interface/view?bvid='+encodeURIComponent(bv));const data=JSON.parse(await limitedText(response));if(data.code===0&&data.data?.pic)return {url,thumbnail:imageUrl(data.data.pic,url),title:String(data.data.title||'').slice(0,500)};console.warn('preview_bilibili',response.status,data.code);}catch(error){console.warn('preview_bilibili',error.message);}}
@@ -112,7 +151,7 @@ export async function preview(value,fetcher=fetch){
    if(lid&&/^[\w-]{12,}$/.test(lid)){try{const meta=await youtubePlaylist(lid,fetcher);if(meta)return {...meta,url};console.warn('preview_youtube_playlist','no metadata');}catch(error){console.warn('preview_youtube_playlist',error.message);}}
   }
   const response=await request(url);
-  if([301,302,303,307,308].includes(response.status)){const next=response.headers.get('location');if(!next)break;url=new URL(next,url).href;if(!allowed(url))throw Error('unsupported_redirect');continue;}
+  if([301,302,303,307,308].includes(response.status)){const next=response.headers.get('location');if(!next)break;url=new URL(next,url).href;if(!await publiclyFetchable(url,dns))throw Error('unsupported_redirect');continue;}
   if(!response.ok)throw Error('upstream_unavailable');const meta=parseMeta(await limitedText(response),url);return /验证码|安全验证|captcha|verify|not a bot/i.test(meta.title)?{url,thumbnail:'',title:''}:meta;
  }
  return {url,thumbnail:'',title:''};

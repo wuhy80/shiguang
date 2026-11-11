@@ -1,9 +1,9 @@
 (function(root){
  'use strict';
- const domains=['mp.weixin.qq.com','bilibili.com','b23.tv','youtube.com','youtu.be','linux.do','zhihu.com','zhihu.link','xiaohongshu.com','xhslink.com','xhslink.cn','douyin.com','iesdouyin.com','github.com'];
+ // 客户端预检只做基础卫生检查；私网拦截与解析校验由边缘函数服务端完成。
  const needsTitle=SG.needsTitle;
  function apply(item,meta){let changed=false;if(!item.thumbnail&&SG.safeImage(meta.thumbnail)){item.thumbnail=SG.safeImage(meta.thumbnail);changed=true;}if(needsTitle(item)&&meta.title&&!needsTitle({...item,title:meta.title})){item.title=String(meta.title).slice(0,500);changed=true;}if(!item.episodes&&Array.isArray(meta.episodes)&&meta.episodes.length){const episodes=meta.episodes.map(e=>SG.normalize(e)).filter(Boolean).map(({url,title,thumbnail})=>({url,title,thumbnail}));if(episodes.length){item.episodes=episodes;changed=true;}}return changed;}
- function supported(url){try{const u=new URL(url);return u.protocol==='https:'&&domains.some(d=>u.hostname===d||u.hostname.endsWith('.'+d));}catch{return false;}}
+ function supported(url){try{const u=new URL(url);const h=u.hostname.toLowerCase();return u.protocol==='https:'&&!u.username&&!u.password&&(!u.port||u.port==='443')&&h.includes('.')&&!h.endsWith('.localhost')&&!h.endsWith('.local')&&!h.endsWith('.internal')&&!/^(\d{1,3}\.){3}\d{1,3}$/.test(h)&&!h.startsWith('[');}catch{return false;}}
  async function fetchPreview(item,onProgress){
   const direct=SG.thumbnailFor(item);if(direct&&!needsTitle(item))return {thumbnail:direct};
   let partial=direct?{thumbnail:direct}:{};

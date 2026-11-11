@@ -1,4 +1,4 @@
-import { preview, allowed } from './preview.mjs';
+import { preview, publiclyFetchable } from './preview.mjs';
 const cache=new Map(),limits=new Map();
 Deno.serve(async req=>{
  const origin=req.headers.get('origin')||'';
@@ -14,7 +14,7 @@ Deno.serve(async req=>{
   const now=Date.now(),limit=limits.get(user.id);if(limit&&limit.until>now&&limit.count>=60)return json({error:'retry_later'},429);
   limits.set(user.id,{count:limit?.until>now?limit.count+1:1,until:limit?.until>now?limit.until:now+60000});if(limits.size>1000)for(const [key,v] of limits)if(v.until<now)limits.delete(key);
   if(Number(req.headers.get('content-length'))>5000)return json({error:'too_large'},413);
-  const raw=await req.text();if(raw.length>5000)return json({error:'too_large'},413);const {url}=JSON.parse(raw);if(typeof url!=='string'||url.length>2000||!allowed(url))return json({error:'unsupported_url'},400);
+  const raw=await req.text();if(raw.length>5000)return json({error:'too_large'},413);const {url}=JSON.parse(raw);if(typeof url!=='string'||url.length>2000||!(await publiclyFetchable(url)))return json({error:'unsupported_url'},400);
   const cached=cache.get(url);if(cached&&cached.until>now)return json(cached.data);
   const data=await preview(url);cache.set(url,{data,until:now+86400000});if(cache.size>500)cache.delete(cache.keys().next().value);return json(data);
  }catch(error){console.warn('preview_failed',error.message);return json({error:'preview_unavailable'},502);}

@@ -18,6 +18,30 @@ test('metadata parser accepts varied OG attribute order and rejects outbound pri
  let calls=0;await assert.rejects(preview('https://b23.tv/test',async()=>{calls++;return new Response('',{status:302,headers:{location:'http://169.254.169.254/latest'}});}),/unsupported_redirect/);assert.equal(calls,1);
  const data=await preview('https://www.bilibili.com/video/BV123',async url=>{assert.match(url,/api.bilibili.com/);return Response.json({code:0,data:{pic:'http://i0.hdslb.com/test.jpg',title:'原视频'}});});assert.equal(data.thumbnail,'https://i0.hdslb.com/test.jpg');
 });
+test('open fetching passes public https sites, fails closed on private addresses and DNS errors, and falls back to declared icons',async()=>{
+ const {parseMeta,publiclyFetchable,preview}=await import('../supabase/functions/link-preview/preview.mjs');
+ // 已知平台域名免解析直接放行；私网字面量与本地域名一律拒绝
+ assert.equal(await publiclyFetchable('https://www.bilibili.com/video/BV1'),true);
+ for(const url of ['https://10.1.2.3/','https://172.16.5.4/','https://192.168.1.1/','https://[::1]/','https://169.254.169.254/meta','https://box.local/','https://svc.internal/','http://ok.example.com/','https://user:pass@example.com/'])assert.equal(await publiclyFetchable(url),false);
+ // 解析结果含私网地址或解析失败时拒绝（fail closed）；缓存按主机名生效，各用例使用不同主机名
+ assert.equal(await publiclyFetchable('https://private.nocobase.com/',async()=>['192.168.1.5']),false);
+ assert.equal(await publiclyFetchable('https://down.nocobase.com/',async()=>{throw Error('doh_down');}),false);
+ assert.equal(await publiclyFetchable('https://www.nocobase.com/',async()=>['140.82.121.4']),true);
+ // 通用站点走 OG 解析
+ const dns=async()=>['76.76.21.21'];
+ const meta=await preview('https://www.nocobase.com/',async url=>{
+  assert.equal(url,'https://www.nocobase.com/');
+  return new Response('<html><head><title>ignored</title><meta property="og:title" content="NocoBase · 开源低代码平台"><meta property="og:image" content="https://www.nocobase.com/images/og.png"></head><body></body></html>',{status:200});
+ },dns);
+ assert.equal(meta.title,'NocoBase · 开源低代码平台');assert.equal(meta.thumbnail,'https://www.nocobase.com/images/og.png');
+ // 没有 og:image 时回退页面声明的 apple-touch-icon / icon
+ assert.equal(parseMeta('<link rel="apple-touch-icon" href="/assets/touch.png"><title>指南</title>','https://docs.example.com/guide/').thumbnail,'https://docs.example.com/assets/touch.png');
+ assert.equal(parseMeta('<title>无封面</title>','https://linux.do').thumbnail,'');
+ // DNS 解析为私网地址的域名在入口就被拒绝，绝不发起抓取
+ let fetched=false;
+ await assert.rejects(preview('https://rebind.example.net/',async()=>{fetched=true;return new Response('',{status:200});},async()=>['10.0.0.8']),/unsupported_url/);
+ assert.equal(fetched,false);
+});
 test('Douyin share SSR data is parsed and collection modal links resolve through the cloud preview',async()=>{
  const {parseDouyin,preview}=await import('../supabase/functions/link-preview/preview.mjs');
  assert.equal(parseDouyin('<html>no data</html>'),null);

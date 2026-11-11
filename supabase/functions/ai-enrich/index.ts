@@ -2,15 +2,46 @@
 // 鉴权、限流与 CORS 与 link-preview 相同；缺 GLM_API_KEY 时返回 501，客户端按未配置降级。
 const limits=new Map(),cache=new Map();
 const ORIGINS=['https://wuhy80.github.io','http://127.0.0.1:4178','http://127.0.0.1:4179'];
-const DOMAINS=['bilibili.com','b23.tv','youtube.com','youtu.be','linux.do','zhihu.com','zhihu.link','xiaohongshu.com','xhslink.com','douyin.com','iesdouyin.com','github.com'];
-function allowed(url){try{const u=new URL(url);return u.protocol==='https:'&&!u.username&&!u.password&&(!u.port||u.port==='443')&&DOMAINS.some(d=>u.hostname===d||u.hostname.endsWith('.'+d));}catch{return false;}}
+// 与 link-preview 相同的 SSRF 硬化门禁：任意 https 站点可抓，但私网/保留地址与解析不到公网 IP 的域名一律拒绝。
+function isPrivateIp(ip){
+ if(ip.startsWith('['))ip=ip.slice(1,-1);
+ if(ip.includes(':')){const lower=ip.toLowerCase();const mapped=lower.match(/^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/);if(mapped)return isPrivateIp(mapped[1]);return lower==='::'||lower==='::1'||/^(?:fe[89ab]|f[cd])[0-9a-f]*:/.test(lower);}
+ const parts=ip.split('.');if(parts.length!==4||parts.some(p=>!/^\d{1,3}$/.test(p)||Number(p)>255))return true;
+ const [a,b]=parts.map(Number);
+ return a===0||a===10||a===127||(a===100&&b>=64&&b<=127)||(a===169&&b===254)||(a===172&&b>=16&&b<=31)||(a===192&&b===168)||(a===198&&(b===18||b===19))||a>=224;
+}
+function unreachableHost(u){
+ if(u.protocol!=='https:'||u.username||u.password||(u.port&&u.port!=='443'))return true;
+ const h=u.hostname.toLowerCase();
+ if(h==='localhost'||h.endsWith('.localhost')||h.endsWith('.local')||h.endsWith('.internal')||h.endsWith('.home.arpa'))return true;
+ return /^(\d{1,3}\.){3}\d{1,3}$/.test(h)||h.startsWith('[')?isPrivateIp(h):false;
+}
+async function dohResolve(hostname){
+ const ask=async base=>{const response=await fetch(base+encodeURIComponent(hostname)+'&type=A',{headers:{accept:'application/dns-json'},signal:AbortSignal.timeout(5000)});if(!response.ok)throw Error('doh_unavailable');return (await response.json()).Answer||[];};
+ let records=[];
+ for(const base of ['https://cloudflare-dns.com/dns-query?name=','https://dns.google/resolve?name=']){try{records=await ask(base);break;}catch{}}
+ if(!records.length)throw Error('doh_unavailable');
+ return records.filter(x=>x.type===1&&typeof x.data==='string').map(x=>x.data);
+}
+const resolvedCache=new Map();
+async function reachable(url){
+ try{
+  const u=new URL(url);if(unreachableHost(u))return false;
+  const h=u.hostname.toLowerCase(),now=Date.now(),cached=resolvedCache.get(h);
+  if(cached&&cached.until>now)return cached.ok;
+  let ok;try{const ips=await dohResolve(h);ok=Array.isArray(ips)&&ips.length>0&&!ips.some(isPrivateIp);}catch{ok=false;}
+  resolvedCache.set(h,{ok,until:now+300000});if(resolvedCache.size>500)resolvedCache.delete(resolvedCache.keys().next().value);
+  return ok;
+ }catch{return false;}
+}
 async function limitedText(response,max=150000){const reader=response.body?.getReader();if(!reader)return '';const decoder=new TextDecoder();let out='';for(;;){const {done,value}=await reader.read();if(done)break;out+=decoder.decode(value,{stream:true});if(out.length>max){try{await reader.cancel();}catch{}break;}}return out+decoder.decode();}
 async function describe(url){ // 尽力而为抓 OG 描述给模型补充上下文，失败静默跳过
  try{
+  if(!await reachable(url))return '';
   let current=url;
   for(let hop=0;hop<5;hop++){
    const response=await fetch(current,{redirect:'manual',headers:{'user-agent':'Mozilla/5.0 (compatible; ShiguangAI/1.0)','accept':'text/html,application/xhtml+xml','accept-language':'zh-CN,zh;q=0.9'},signal:AbortSignal.timeout(8000)});
-   if(response.status>=300&&response.status<400){const location=response.headers.get('location');if(!location||!allowed(location))return '';current=location;continue;}
+   if(response.status>=300&&response.status<400){const location=response.headers.get('location');if(!location||!(await reachable(location)))return '';current=location;continue;}
    if(!response.ok)return '';
    const html=await limitedText(response);
    const match=key=>{for(const re of [new RegExp('<meta[^>]+(?:property|name)=["\']'+key+'["\'][^>]*content=["\']([^"\']*)["\']','i'),new RegExp('<meta[^>]+content=["\']([^"\']*)["\'][^>]*(?:property|name)=["\']'+key+'["\']','i')]){const found=html.match(re);if(found)return found[1];}const title=html.match(/<title[^>]*>([^<]*)<\/title>/i);return key==='description'&&title?title[1]:'';};
