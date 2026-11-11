@@ -113,7 +113,7 @@ async function fillCovers(){
  if(fillingCovers||demo||!window.ShiguangPreview)return;fillingCovers=true;
  try{
  const owner=localStorage.getItem('shiguang.cloud.owner')||'';
- const pending=items.filter(x=>(!x.thumbnail||ShiguangPreview.needsTitle(x))&&(SG.thumbnailFor(x)||(owner||window.ShiguangPreviewNative)&&ShiguangPreview.supported(x.url))&&Date.now()-(coverAttempts.get(owner+x.url)||0)>3600000).slice(0,30);
+ const pending=items.filter(x=>(!x.thumbnail||/favicon|\.ico($|[?#])/i.test(x.thumbnail||'')||ShiguangPreview.needsTitle(x))&&(SG.thumbnailFor(x)||owner&&ShiguangPreview.supported(x.url))&&Date.now()-(coverAttempts.get(owner+x.url)||0)>3600000).slice(0,30);
  for(const original of pending){
   if((localStorage.getItem('shiguang.cloud.owner')||'')!==owner||demo)break;
   coverAttempts.set(owner+original.url,Date.now());let meta;try{meta=await ShiguangPreview.fetch(original);}catch{continue;}
