@@ -36,6 +36,8 @@ test('open fetching passes public https sites, fails closed on private addresses
  assert.equal(meta.title,'NocoBase · 开源低代码平台');assert.equal(meta.thumbnail,'https://www.nocobase.com/images/og.png');
  // 没有 og:image 时回退页面声明的 apple-touch-icon / icon
  assert.equal(parseMeta('<link rel="apple-touch-icon" href="/assets/touch.png"><title>指南</title>','https://docs.example.com/guide/').thumbnail,'https://docs.example.com/assets/touch.png');
+ assert.equal(parseMeta('<link rel="icon" sizes="32x32" href="/favicon-32.png"><title>无大图标</title>','https://example.com/').thumbnail,'');
+ assert.equal(parseMeta('<link rel="icon" sizes="192x192" href="/icon-192.png"><title>大图标</title>','https://example.com/').thumbnail,'https://example.com/icon-192.png');
  assert.equal(parseMeta('<title>无封面</title>','https://linux.do').thumbnail,'');
  // DNS 解析为私网地址的域名在入口就被拒绝，绝不发起抓取
  let fetched=false;

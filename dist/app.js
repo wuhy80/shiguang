@@ -105,6 +105,8 @@ async function pasteLink(){
  }catch(error){$('#form-error').textContent=error.message||'请长按链接输入框粘贴';}
 }
 document.addEventListener('error',event=>{if(event.target.matches?.('.cover-image'))event.target.remove();},true);
+/* 小图标不做全幅拉伸：实际宽度过小的封面图降级为居中站点图标 */
+document.addEventListener('load',event=>{const img=event.target;if(!(img instanceof HTMLImageElement)||!img.classList.contains('cover-image'))return;if(img.naturalWidth>0&&img.naturalWidth<96){img.classList.add('icon-size');const cover=img.closest('.cover');if(cover)cover.classList.add('icon-mode');}},true);
 let fillingCovers=false,coverTimer;const coverAttempts=new Map();
 function queueCoverFill(){clearTimeout(coverTimer);coverTimer=setTimeout(fillCovers,300);}
 async function fillCovers(){
